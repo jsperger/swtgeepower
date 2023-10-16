@@ -14,7 +14,10 @@
 ##
 ##############################################################################################
 
-#' Create a Correlation Matrix Specification
+#' @title Specify and Create a Correlation Matrix
+#'
+#' @description
+#' r lifecycle::badge("experimental")`
 #'
 #' This function generates a specification for a correlation matrix based on
 #' a variety of correlation structures, such as exchangeable, exponential decay,
@@ -29,13 +32,6 @@
 #'
 #' @return An (n_individuals*n_time_periods)-dimensional matrix specifying the correlation structure between observations
 #' in the same cluster over time.
-#'
-#' @examples
-#' # For an exchangeable structure
-#' corr_matrix_spec(10, 5, "exchangeable", 0.5)
-#'
-#' # For an exponential decay structure
-#' corr_matrix_spec(10, 5, "exponential_decay", 0.5, time_decay_rate = 0.8)
 #'
 #' @export
 #'
@@ -103,7 +99,7 @@ SpecifyCorrelationMatrix <- function(
 #'
 #' @description
 #' Generates a nested-exchangeable correlation matrix based on the given parameters. This function assumes that input validation
-#' has been performed by its parent function, 'SpecifyCorrelationMatrix'.
+#' has been performed by its parent function \code{\link{SpecifyCorrelationMatrix}}.
 #'
 #' @param n_obs_periods Integer. The number of observation periods.
 #' @param n_subj_per_period Integer. The number of subjects per observation period.
@@ -114,6 +110,8 @@ SpecifyCorrelationMatrix <- function(
 #'
 #' @return
 #' A nested-exchangeable correlation matrix with dimensions [n_obs_periods * n_subj_per_period, n_obs_periods * n_subj_per_period].
+#'
+#' @noRd
 #'
 #' @examples
 #' \dontrun{
@@ -147,7 +145,7 @@ SpecifyCorrelationMatrix <- function(
 #' @title Create Exponential Decay Correlation Matrix
 #'
 #' @description This function constructs a correlation matrix based on an exponential decay model. The function
-#' assumes that inputs have been validated in the parent function 'SpecifyCorrelationMatrix'.
+#' assumes that inputs have been validated in the parent function \code{\link{SpecifyCorrelationMatrix}}.
 #'
 #' @param n_obs_periods Integer. The number of observation periods.
 #' @param n_subj_per_period Integer. The number of subjects per observation period.
@@ -156,6 +154,8 @@ SpecifyCorrelationMatrix <- function(
 #' The correlation between observations in different periods is given by within_period_cor * cor_decay_rate^|period difference|.
 #'
 #' @return A correlation matrix following the exponential decay model with row- (and column-) dimension n_obs_periods*n_subj_per_period.
+#'
+#' @noRd
 #'
 #' @examples
 #' .CreateExponentialDecayCorMat(n_obs_periods = 3,
@@ -195,8 +195,10 @@ SpecifyCorrelationMatrix <- function(
 ##############################################################################################
 #' @title Create Block Exchangeable Correlation Matrix
 #'
+#' @noRd
+#'
 #' @description This function creates a block-exchangeable correlation matrix using the provided parameters.
-#' Assumes inputs were checked in the parent function 'SpecifyCorrelationMatrix'.
+#' Assumes inputs were checked in the parent function \code{\link{SpecifyCorrelationMatrix}}.
 #'
 #' @param n_obs_periods Number of observation periods
 #' @param n_subj_per_period Number of subjects per observation period
@@ -244,8 +246,10 @@ SpecifyCorrelationMatrix <- function(
 }
 #' @title Create Proportional Decay Correlation Matrix
 #'
+#' @noRd
+#'
 #' @description This function constructs a correlation matrix based on a proportional decay model. The function
-#' assumes that inputs have been validated in the parent function 'SpecifyCorrelationMatrix'.
+#' assumes that inputs have been validated in the parent function \code{\link{SpecifyCorrelationMatrix}}.
 #'
 #' @param n_obs_periods Integer. The number of observation periods.
 #' @param n_subj_per_period Integer. The number of subjects per observation period.
@@ -299,8 +303,10 @@ SpecifyCorrelationMatrix <- function(
 
 #' @title Check inputs for correlation matrix functions
 #'
+#' @noRd
+#'
 #' @description Internal helper function to check the inputs for functions used to create correlation matrices.
-#' Called from the wrapper function \code{SpecifyCorrelationMatrix} rather than individual correlation-specific helper functions.
+#' Called from the wrapper function \code{\link{SpecifyCorrelationMatrix}} rather than individual correlation-specific helper functions.
 #'
 #' @param n_obs_periods Number of observation periods (positive integer).
 #' @param n_subj_per_period Number of subjects per observation period (positive integer).
@@ -348,7 +354,7 @@ SpecifyCorrelationMatrix <- function(
 }
 
 #' @title Check logic of correlation matrix inputs
-#'
+#' @noRd
 #' @description Internal helper function to check the logical consistency of correlation matrix inputs.
 #'
 #' @param design_type_sanitized A string specifying the type of study design, cohort or cross-sectional (character).
@@ -398,6 +404,7 @@ SpecifyCorrelationMatrix <- function(
   
   return(NULL)
 }
+
 
 .CheckCorMatInputsNumericVals <- function(n_obs_periods,
                                           n_subj_per_period,
@@ -459,5 +466,12 @@ SpecifyCorrelationMatrix <- function(
   stop("ERROR: cor_decay_rate must be numeric")
   }
 
-  return(NULL)
+  input_list <- list(n_obs_periods, n_subj_per_period, design_type, within_period_cor, between_period_cor, within_subject_cor, cor_decay_rate)
+  if(any(lapply(input_list, FUN = length) > 1)){
+    include_in_error_msg <- lapply(input_list, FUN = length) > 1
+
+    stop(paste("ERROR: The following inputs must be single values:", paste(names(input_list)[include_in_error_msg], collapse = ", ")))
+  }
+
+    return(NULL)
 }

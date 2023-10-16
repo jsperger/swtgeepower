@@ -1,8 +1,8 @@
 Package: swtgeepower
-Title: What the Package Does (One Line, Title Case)
+Title: Power and Sample Size Calculation for Stepped Wedge Trials using GEE
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
+    person("Sperger", "John", , "first.last@example.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: What the package does (one paragraph).
 License: GPL (>= 3)
@@ -17,4 +17,5 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: 
+    lifecycle,
     tibble
