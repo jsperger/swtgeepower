@@ -7,12 +7,14 @@
 
 #TODO: explain why there isn't an option for exchangeable correlation structure
 #TODO: Add a note about the correlation when there is an implementation period.
-#TODO: Add a way to accomodate an implementation period with decay models so that the decay is calculated using calendar time period equivalents
+#TODO: Add a way to accomodate an implementation period with decay models so
+# that the decay is calculated using calendar time period equivalents.
 
-##############################################################################################
+
+###############################################################################
 ## Correlation Matrix Wrapper Function
 ##
-##############################################################################################
+###############################################################################
 
 #' @title Specify and Create a Correlation Matrix
 #'
@@ -22,9 +24,9 @@
 #' This function generates a specification for a correlation matrix based on
 #' a variety of correlation structures, such as exchangeable, exponential decay,
 #' and block exchangeable. The function is intended to be used as a utility
-#' function to specify the correlation structure for GEE-based power calculations
-#' or sample size calculations in stepped wedge trials. The type of correlation structure that is created depends
-#' on which arguments are provided.
+#' function to specify the correlation structure for GEE-based power calculation
+#' or sample size calculation in stepped wedge trials. The type of correlation
+#' structure that is created depends on which arguments are provided.
 #'
 #' @param n_individuals Integer. The number of individuals within each cluster.
 #' @param n_time_periods Integer. The number of time periods for the study.
@@ -39,10 +41,14 @@ SpecifyCorrelationMatrix <- function(
   n_subj_per_period,              # Number of individuals in a cluster
   n_obs_periods,              # Number of observed time periods
   design_type,                # Type of design
-  within_period_cor, # Correlation between observations on different subjects in the same cluster in the same time period
-  cor_decay_rate = NULL,      # Correlation decary rate over time cor_decay_rate^|time difference|
-  between_period_cor = NULL,# Correlation between observations on different subjects in the same cluster in different time periods
-  within_subject_cor = NULL # Correlation between observations on the same subject in different time periods
+  within_period_cor, # Correlation between observations on different subjects in
+  # the same cluster in the same time period
+  cor_decay_rate = NULL,      # Correlation decary rate over time
+  # cor_decay_rate^|time difference|
+  between_period_cor = NULL,# Correlation between observations on different
+  # subjects in the same cluster in different time periods
+  within_subject_cor = NULL # Correlation between observations on the same
+  # subject in different time periods
   ) {
 
   design_type_sanitized <- tolower(design_type) %>% stringr::str_trim(.)
@@ -56,33 +62,43 @@ SpecifyCorrelationMatrix <- function(
                      within_subject_cor = within_subject_cor,
                      cor_decay_rate = cor_decay_rate)
   
-  # Not logically exhaustive, but all other cases are errors that should be caught by input checks
+  # Not logically exhaustive, but all other cases are errors that should be
+  # caught by input checks
   cor_structure <- dplyr::case_when(
-    design_type_sanitized == "cross" & !is.null(cor_decay_rate) ~ "exponential_decay",
-    design_type_sanitized == "cross" & !is.null(between_period_cor) & is.null(within_subject_cor) ~ "nested_exchangeable",
-    design_type_sanitized == "cohort" & !is.null(cor_decay_rate) ~ "proportional_decay",
-    design_type_sanitized == "cohort" & !any(is.null(between_period_cor), is.null(within_subject_cor)) ~ "block_exchangeable",
+    design_type_sanitized == "cross" & !is.null(cor_decay_rate) ~
+      "exponential_decay",
+    design_type_sanitized == "cross" & !is.null(between_period_cor) &
+      is.null(within_subject_cor) ~ "nested_exchangeable",
+    design_type_sanitized == "cohort" &
+      !is.null(cor_decay_rate) ~ "proportional_decay",
+    design_type_sanitized == "cohort" &
+      !any(is.null(between_period_cor), is.null(within_subject_cor)) ~
+      "block_exchangeable",
     TRUE ~ NA_character_
   )
 
   correlation_matrix <- switch(cor_structure,
-                               exponential_decay = .CreateExponentialDecayCorMat(n_obs_periods = n_obs_periods,
-                                                                                  n_subj_per_period = n_subj_per_period,
-                                                                                  within_period_cor = within_period_cor,
-                                                                                  cor_decay_rate = cor_decay_rate),
-                               nested_exchangeable = .CreateNestedExchangeableCorMat(n_obs_periods = n_obs_periods,
-                                                                                   n_subj_per_period = n_subj_per_period,
-                                                                                   within_period_cor = within_period_cor,
-                                                                                   between_period_cor = between_period_cor),
-                               proportional_decay = .CreateProportionalDecayCorMat(n_obs_periods = n_obs_periods,
-                                                                                   n_subj_per_period = n_subj_per_period,
-                                                                                   within_period_cor = within_period_cor,
-                                                                                   cor_decay_rate = cor_decay_rate),
-                               block_exchangeable = .CreateBlockExchangeableCorMat(n_obs_periods = n_obs_periods,
-                                                                                   n_subj_per_period = n_subj_per_period,
-                                                                                   within_period_cor = within_period_cor,
-                                                                                   between_period_cor = between_period_cor,
-                                                                                   within_subject_cor = within_subject_cor))
+   exponential_decay = .CreateExponentialDecayCorMat(
+     n_obs_periods = n_obs_periods,
+     n_subj_per_period = n_subj_per_period,
+     within_period_cor = within_period_cor,
+     cor_decay_rate = cor_decay_rate),
+   nested_exchangeable = .CreateNestedExchangeableCorMat(
+     n_obs_periods = n_obs_periods,
+     n_subj_per_period = n_subj_per_period,
+     within_period_cor = within_period_cor,
+     between_period_cor = between_period_cor),
+   proportional_decay = .CreateProportionalDecayCorMat(
+     n_obs_periods = n_obs_periods,
+     n_subj_per_period = n_subj_per_period,
+     within_period_cor = within_period_cor,
+     cor_decay_rate = cor_decay_rate),
+   block_exchangeable = .CreateBlockExchangeableCorMat(
+     n_obs_periods = n_obs_periods,
+     n_subj_per_period = n_subj_per_period,
+     within_period_cor = within_period_cor,
+     between_period_cor = between_period_cor,
+     within_subject_cor = within_subject_cor))
 
   return(correlation_matrix)
 }
@@ -98,8 +114,10 @@ SpecifyCorrelationMatrix <- function(
 #' @title Create Nested Exchangeable Correlation Matrix
 #'
 #' @description
-#' Generates a nested-exchangeable correlation matrix based on the given parameters. This function assumes that input validation
-#' has been performed by its parent function \code{\link{SpecifyCorrelationMatrix}}.
+#' Generates a nested-exchangeable correlation matrix based on the given
+#' parameters. This function assumes that input validation
+#' has been performed by its parent function
+#' \code{\link{SpecifyCorrelationMatrix}}.
 #'
 #' @param n_obs_periods Integer. The number of observation periods.
 #' @param n_subj_per_period Integer. The number of subjects per observation period.
@@ -109,13 +127,15 @@ SpecifyCorrelationMatrix <- function(
 #' in the same cluster but in different time periods.
 #'
 #' @return
-#' A nested-exchangeable correlation matrix with dimensions [n_obs_periods * n_subj_per_period, n_obs_periods * n_subj_per_period].
+#' A nested-exchangeable correlation matrix with dimensions
+#' [n_obs_periods * n_subj_per_period, n_obs_periods * n_subj_per_period].
 #'
 #' @noRd
 #'
 #' @examples
 #' \dontrun{
-#' .CreateNestedExchangeableCorMat(n_obs_periods = 2, n_subj_per_period = 3, within_period_cor = 0.1, between_period_cor = 0.2)
+#' .CreateNestedExchangeableCorMat(n_obs_periods = 2, n_subj_per_period = 3,
+#' within_period_cor = 0.1, between_period_cor = 0.2)
 #' }
 #'
 .CreateNestedExchangeableCorMat <- function(n_obs_periods,
@@ -131,12 +151,14 @@ SpecifyCorrelationMatrix <- function(
   within_period_component <- (within_period_cor - between_period_cor) *
     diag(1, n_obs_periods)  %x% matrix(data = 1, nrow = n_subj_per_period, ncol = n_subj_per_period)
 
-  between_period_component <- between_period_cor * matrix(data = 1,
-                                                          nrow = n_obs_periods * n_subj_per_period,
-                                                          ncol = n_obs_periods * n_subj_per_period)
+  between_period_component <- between_period_cor * matrix(
+    data = 1,
+    nrow = n_obs_periods * n_subj_per_period,
+    ncol = n_obs_periods * n_subj_per_period)
 
   # Create nested exchangeable correlation matrix
-  nested_exchangeable_cor_mat <-   diagonal_mat + within_period_component + between_period_component
+  nested_exchangeable_cor_mat <-   diagonal_mat +
+    within_period_component + between_period_component
 
   return(nested_exchangeable_cor_mat)
 
@@ -144,16 +166,21 @@ SpecifyCorrelationMatrix <- function(
 
 #' @title Create Exponential Decay Correlation Matrix
 #'
-#' @description This function constructs a correlation matrix based on an exponential decay model. The function
-#' assumes that inputs have been validated in the parent function \code{\link{SpecifyCorrelationMatrix}}.
+#' @description This function constructs a correlation matrix based on an
+#' exponential decay model. The function assumes that inputs have been validated
+#' in the parent function \code{\link{SpecifyCorrelationMatrix}}.
 #'
 #' @param n_obs_periods Integer. The number of observation periods.
 #' @param n_subj_per_period Integer. The number of subjects per observation period.
-#' @param within_period_cor Numeric. Baseline correlation between observations on different subjects within the same time period.
-#' @param cor_decay_rate Numeric. Decay rate applied to the correlation between observations across different time periods.
-#' The correlation between observations in different periods is given by within_period_cor * cor_decay_rate^|period difference|.
+#' @param within_period_cor Numeric. Baseline correlation between observations
+#' on different subjects within the same time period.
+#' @param cor_decay_rate Numeric. Decay rate applied to the correlation between
+#' observations across different time periods.
+#' The correlation between observations in different periods is given by
+#' within_period_cor * cor_decay_rate^|period difference|.
 #'
-#' @return A correlation matrix following the exponential decay model with row- (and column-) dimension n_obs_periods*n_subj_per_period.
+#' @return A correlation matrix following the exponential decay model with
+#' row- (and column-) dimension n_obs_periods*n_subj_per_period.
 #'
 #' @noRd
 #'
@@ -192,13 +219,14 @@ SpecifyCorrelationMatrix <- function(
 }
 
 ## Cohort Designs
-##############################################################################################
+################################################################################
 #' @title Create Block Exchangeable Correlation Matrix
 #'
 #' @noRd
 #'
-#' @description This function creates a block-exchangeable correlation matrix using the provided parameters.
-#' Assumes inputs were checked in the parent function \code{\link{SpecifyCorrelationMatrix}}.
+#' @description This function creates a block-exchangeable correlation matrix
+#' using the provided parameters. Assumes inputs were checked in the parent
+#' function \code{\link{SpecifyCorrelationMatrix}}.
 #'
 #' @param n_obs_periods Number of observation periods
 #' @param n_subj_per_period Number of subjects per observation period
@@ -209,7 +237,8 @@ SpecifyCorrelationMatrix <- function(
 #' @param within_subject_cor Correlation between observations on the same subject
 #' in different time periods
 #'
-#' @return A block-exchangeable correlation matrix with row- (and column-) dimension n_obs_periods*n_subj_per_period
+#' @return A block-exchangeable correlation matrix with row-
+#' (and column-) dimension n_obs_periods*n_subj_per_period
 #'
 #' @examples
 #' .CreateBlockExchangeableCorMat(n_obs_periods = 2,
@@ -239,7 +268,8 @@ SpecifyCorrelationMatrix <- function(
                                                           ncol = n_obs_periods * n_subj_per_period)
 
   # Create block exchangeable correlation matrix
-  block_exchangeable_cor_mat <-   diagonal_mat + within_period_component + within_subj_component + between_period_component
+  block_exchangeable_cor_mat <-   diagonal_mat + within_period_component +
+    within_subj_component + between_period_component
 
   return(block_exchangeable_cor_mat)
 

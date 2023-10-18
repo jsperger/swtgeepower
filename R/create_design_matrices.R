@@ -1,10 +1,12 @@
-#' @title Create study design matrix for a complete study where every cluster observed in every period.
+#' @title Create study design matrix for a complete study where every cluster
+#' observed in every period.
 #'
 #' @description
 #' r lifecycle::badge("experimental")`
 #'
-#' Simple function that assumes that each cluster is observed in each time period,
-#' and that every sequence has at least one period on control before crossing over to treatment.
+#' Simple function that assumes that each cluster is observed in each time
+#' period, and that every sequence has at least one period on control before
+#' crossing over to treatment.
 #'
 #' @param n_study_time_periods The total number of time periods in the study.
 #' @param n_obs_per_sequence
