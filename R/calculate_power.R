@@ -22,13 +22,13 @@ CalcGEEPower <- function(design_mat_list = NULL,
                          var_fun,
                          cor_mat_list = NULL,
                          incidence_mat_list = NULL,
-dist = "normal",
+                         dist = "normal",
                          link = "identity",
-dispersion_scalar_scalar = NULL,
+                         dispersion_scalar_scalar = NULL,
                          alpha = .05,
-test_df,
-                         contrast_mat = NULL){
-
+                         test_df,
+                         contrast_mat = NULL) {
+  stop("This function is not yet implemented")
 }
 
 
@@ -96,8 +96,7 @@ test_df,
                        test_df,
                        contrast_mat,
                        null_val_vec,
-                       power_only_flag = FALSE){
-
+                       power_only_flag = FALSE) {
   n_clust <- length(design_mat_list)
 
   # Create placeholder lists
@@ -107,21 +106,29 @@ test_df,
   vi_var_matrix_list <- vector(mode = "list", length = n_clust)
 
   # Calculate estimating equation components for each cluster
-  for(i in 1:n_clust){
-    clust_mu_vec <- .CreateMuiVector(design_mat = design_mat_list[[i]],
-                                              trt_param_col_vec = trt_param_col_vec,
-                                              response_type = response_type,
-                                              link = link)
+  for (i in 1:n_clust) {
+    clust_mu_vec <- .CreateMuiVector(
+      design_mat = design_mat_list[[i]],
+      trt_param_col_vec = trt_param_col_vec,
+      response_type = response_type,
+      link = link
+    )
 
-    clust_mean_jacobian_mat_list <- .CreateMeanJacobianMatDi(mu_col_vec = clust_mu_vec,
-                                                               link = link)
+    clust_mean_jacobian_mat_list <- .CreateMeanJacobianMatDi(
+      mu_col_vec = clust_mu_vec,
+      link = link
+    )
 
-    clust_bi_var_matrix <- .CreateVarParamMatrixBi(mu_col_vec = clust_mu_vec,
-                                                   dispersion_scalar = dispersion_scalar,
-                                                   var_fun = var_fun)
+    clust_bi_var_matrix <- .CreateVarParamMatrixBi(
+      mu_col_vec = clust_mu_vec,
+      dispersion_scalar = dispersion_scalar,
+      var_fun = var_fun
+    )
 
-    clust_vi_var_matrix <- .CalcVarMatrixVi(var_mat_bi = clust_bi_var_matrix,
-                                            working_cor_mat_ri = working_cor_mat_list[[i]])
+    clust_vi_var_matrix <- .CalcVarMatrixVi(
+      var_mat_bi = clust_bi_var_matrix,
+      working_cor_mat_ri = working_cor_mat_list[[i]]
+    )
 
     # Store the results in the placeholder lists
     mui_col_vec_list[[i]] <- clust_mu_vec
@@ -130,11 +137,12 @@ test_df,
     vi_var_matrix_list[[i]] <- clust_vi_var_matrix
   }
 
-# Calculate the model-based variance matrix
+  # Calculate the model-based variance matrix
 
   model_based_var_mat <- .CalcModelBasedVariance(
     mean_jacobian_mat_list = di_mean_jacobian_mat_list,
-    var_mat_vi_list = vi_var_matrix_list)
+    var_mat_vi_list = vi_var_matrix_list
+  )
 
   # Calculate the estimated parameter vector
   estimated_param_vec <- .CalcEstimatedParamVec(
@@ -142,31 +150,40 @@ test_df,
     mean_jacobian_mat_list = di_mean_jacobian_mat_list,
     var_mat_vi_list = vi_var_matrix_list,
     mui_vec_list = mui_col_vec_list,
-    invlink_fun = invlink_fun)
+    invlink_fun = invlink_fun
+  )
 
   # Calculate the noncentrality parameter for the Wald test
-  noncentrality_param <- .CalcWaldNcp(n_clust = n_clust,
-                                      contrast_mat = contrast_mat,
-                                      null_val_vec = null_val_vec,
-                                      estimated_param_vec = estimated_param_vec,
-                                      model_based_var_mat = model_based_var_mat)
+  noncentrality_param <- .CalcWaldNcp(
+    n_clust = n_clust,
+    contrast_mat = contrast_mat,
+    null_val_vec = null_val_vec,
+    estimated_param_vec = estimated_param_vec,
+    model_based_var_mat = model_based_var_mat
+  )
 
-    # Calculate the critical value for the Wald test
-    null_crit_val <- .CalcWaldCritVal(alpha = alpha,
-                                 test_df = test_df)
+  # Calculate the critical value for the Wald test
+  null_crit_val <- .CalcWaldCritVal(
+    alpha = alpha,
+    test_df = test_df
+  )
 
-    # Calculate the power of the test
-    power <- 1 - pchisq(q = crit_val,
-                        df = test_df,
-                        ncp = noncentrality_param)
+  # Calculate the power of the test
+  power <- 1 - pchisq(
+    q = crit_val,
+    df = test_df,
+    ncp = noncentrality_param
+  )
 
-  if(power_only_flag == TRUE) return(power)
+  if (power_only_flag == TRUE) return(power)
 
-  power_calc_results <- list(power = power,
-                             cluster_sample_size = n_clust,
-                             test_stat = noncentrality_param,
-                             alpha = alpha,
-                             test_df = test_df)
+  power_calc_results <- list(
+    power = power,
+    cluster_sample_size = n_clust,
+    test_stat = noncentrality_param,
+    alpha = alpha,
+    test_df = test_df
+  )
 
   return(power_calc_results)
 }
@@ -193,20 +210,20 @@ test_df,
 #' Returns a numeric column vector \( \mu \) containing the expected responses.
 #'
 #' @keywords internal
-.CreateMuiVector <- function (design_mat,
+.CreateMuiVector <- function(design_mat,
                              trt_param_vec,
                              response_type,
-                             link){
-
+                             link) {
   # Expected response on the scale of the link function
   linear_pred_vec <- design_mat %*% trt_param_vec
 
   mu_vec <- switch(link,
                    identity = linear_pred_vec,
-                   logit = exp(linear_pred_vec)/(1 + exp(linear_pred_vec)),
-                   log = exp(linear_pred_vec))
+                   logit = exp(linear_pred_vec) / (1 + exp(linear_pred_vec)),
+                   log = exp(linear_pred_vec)
+  )
 
-  if(response_type == "count" & min(mu_vec) <= 0 ){
+  if (response_type == "count" & min(mu_vec) <= 0) {
     stop("The mean of the response variable must be positive")
   }
 
@@ -234,12 +251,12 @@ test_df,
 #' Returns a numeric matrix, the mean Jacobian matrix \( D_i \).
 #'
 #' @keywords internal
-.CreateMeanJacobianMatDi <- function(mu_col_vec, link){
-
+.CreateMeanJacobianMatDi <- function(mu_col_vec, link) {
   mean_jacobian_mat_di <- switch(link,
                                  identity = diag(1, nrow = mu_col_vec),
                                  logit = diag(mu_col_vec) %*% diag(1 - mu_col_vec),
-                                 log = diag(mu_col_vec))
+                                 log = diag(mu_col_vec)
+  )
 
   return(mean_jacobian_mat_di)
 }
@@ -267,9 +284,8 @@ test_df,
 #' @keywords internal
 .CreateVarParamMatrixBi <- function(mu_col_vec,
                                     dispersion_scalar,
-                                    var_fun){
-
-  #concatenate matrix to vector
+                                    var_fun) {
+  # concatenate matrix to vector
   var_vec <- var_fun(c(mu_col_vec))
 
   var_mat <- diag(var_vec)
@@ -299,8 +315,7 @@ test_df,
 #'
 #' @keywords internal
 .CalcVarMatrixVi <- function(var_mat_bi,
-                             working_cor_mat_ri){
-
+                             working_cor_mat_ri) {
   root_bi <- sqrt(var_mat_bi)
 
   var_mat_vi <- root_bi %*% working_cor_mat_ri %*% root_bi
@@ -329,19 +344,18 @@ test_df,
 #' @keywords internal
 
 .CalcModelBasedVariance <- function(mean_jacobian_mat_list,
-                                    var_mat_vi_list){
-
+                                    var_mat_vi_list) {
   param_dim <- ncol(mean_jacobian_mat_list[[1]])
 
   vinv_list <- lapply(var_mat_vi_list, solve)
 
   model_based_var_mat <- matrix(0, nrow = param_dim, ncol = param_dim)
 
-  for(i in 1:length(mean_jacobian_mat_list)){
+  for (i in 1:length(mean_jacobian_mat_list)) {
     model_based_var_mat <- model_based_var_mat +
       t(mean_jacobian_mat_list[[i]]) %*%
-      vinv_list[[i]] %*%
-      mean_jacobian_mat_list[[i]]
+        vinv_list[[i]] %*%
+        mean_jacobian_mat_list[[i]]
   }
 
   return(model_based_var_mat)
@@ -378,24 +392,25 @@ test_df,
                                    var_mat_vi_list,
                                    mui_vec_list,
                                    invlink_fun) {
-
   num_clusters <- length(design_mat_list)
 
   # Calculate the shared term for each cluster
-  shared_term_for_clusters <- lapply(1:num_clusters,
-                                     function(i) {
-                                       t(design_mat_list[[i]]) %*%
-                                         mean_jacobian_mat_list[[i]] %*%
-                                         var_mat_vi_list[[i]] %*%
-                                         t(mean_jacobian_mat_list[[i]])
-                                     })
+  shared_term_for_clusters <- lapply(
+    1:num_clusters,
+    function(i) {
+      t(design_mat_list[[i]]) %*%
+        mean_jacobian_mat_list[[i]] %*%
+        var_mat_vi_list[[i]] %*%
+        t(mean_jacobian_mat_list[[i]])
+    }
+  )
 
   # Initialize lists to hold the left and right parts of the equation
   left_equation_terms <- vector(mode = "list", length = num_clusters)
   right_equation_terms <- vector(mode = "list", length = num_clusters)
 
   # Calculate the left and right parts for each cluster
-  for(i in 1:num_clusters) {
+  for (i in 1:num_clusters) {
     left_equation_terms[[i]] <- shared_term_for_clusters[[i]] %*% design_mat_list[[i]]
     right_equation_terms[[i]] <- shared_term_for_clusters[[i]] %*% invlink_fun(mui_vec_list[[i]])
   }
@@ -436,16 +451,15 @@ test_df,
                          contrast_mat,
                          null_val_vec,
                          estimated_param_vec,
-                         model_based_var_mat){
- model_based_var_inv <- solve(model_based_var_mat)
+                         model_based_var_mat) {
+  model_based_var_inv <- solve(model_based_var_mat)
 
   noncentrality_param <- n_clust *
     t(contrast_mat %*% estimated_param_vec - null_val_vec) %*%
-    model_based_var_inv %*%
-    (contrast_mat %*% estimated_param_vec - null_val_vec)
+      model_based_var_inv %*%
+      (contrast_mat %*% estimated_param_vec - null_val_vec)
 
-    return(noncentrality_param)
-
+  return(noncentrality_param)
 }
 
 
@@ -467,9 +481,11 @@ test_df,
 #' Returns a numeric value representing the critical value under the null hypothesis.
 #'
 #' @keywords internal
-.CalcWaldNullCritVal <- function(alpha, test_df){
-  null_crit_val <- qchisq(q = 1 - alpha,
-                     df =  test_df)
+.CalcWaldNullCritVal <- function(alpha, test_df) {
+  null_crit_val <- qchisq(
+    q = 1 - alpha,
+    df = test_df
+  )
 
   return(null_crit_val)
 }
@@ -483,29 +499,31 @@ test_df,
   design_mat_list, working_cor_mat_list, incidence_mat_list, trt_param_col_vec,
   dispersion_scalar, var_fun, link, response_type, alpha, test_df, contrast_mat,
   null_val_vec, power_only_flag) {
-
   checkmate::expect_list(design_mat_list,
                          any.missing = FALSE,
                          types = "numeric",
                          min.len = 1,
-                         null.ok = FALSE)
+                         null.ok = FALSE
+  )
 
   checkmate::expect_list(working_cor_mat_list,
                          any.missing = FALSE,
                          types = "numeric",
                          min.len = 1,
-                         null.ok = FALSE)
+                         null.ok = FALSE
+  )
 
   checkmate::expect_list(incidence_mat_list,
                          any.missing = FALSE,
                          types = "numeric",
                          min.len = 1,
-                         null.ok = TRUE)
+                         null.ok = TRUE
+  )
 
   # Check if lists are of the same length
   checkmate::expect_equal(length(design_mat_list), length(working_cor_mat_list))
 
-  if(!is.null(incidence_mat_list)){
+  if (!is.null(incidence_mat_list)) {
     checkmate::expect_equal(length(design_mat_list), length(incidence_mat_list))
   }
 
@@ -530,7 +548,6 @@ test_df,
   design_mat_list, working_cor_mat_list, incidence_mat_list, trt_param_col_vec,
   dispersion_scalar, var_fun, link, response_type, alpha, test_df, contrast_mat,
   null_val_vec, power_only_flag) {
-
   .CheckNumericVals(alpha = alpha, dispersion_scalar = dispersion_scalar, test_df = test_df)
 
   .CheckListLengths(design_mat_list = design_mat_list, working_cor_mat_list = working_cor_mat_list, incidence_mat_list = incidence_mat_list)

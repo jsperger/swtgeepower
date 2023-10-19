@@ -5,9 +5,9 @@
 #' @docType package
 #' @name swtgeepower
 
-#TODO: explain why there isn't an option for exchangeable correlation structure
-#TODO: Add a note about the correlation when there is an implementation period.
-#TODO: Add a way to accomodate an implementation period with decay models so
+# TODO: explain why there isn't an option for exchangeable correlation structure
+# TODO: Add a note about the correlation when there is an implementation period.
+# TODO: Add a way to accomodate an implementation period with decay models so
 # that the decay is calculated using calendar time period equivalents.
 
 
@@ -38,30 +38,31 @@
 #' @export
 #'
 SpecifyCorrelationMatrix <- function(
-  n_subj_per_period,              # Number of individuals in a cluster
-  n_obs_periods,              # Number of observed time periods
-  design_type,                # Type of design
+  n_subj_per_period, # Number of individuals in a cluster
+  n_obs_periods, # Number of observed time periods
+  design_type, # Type of design
   within_period_cor, # Correlation between observations on different subjects in
   # the same cluster in the same time period
-  cor_decay_rate = NULL,      # Correlation decary rate over time
+  cor_decay_rate = NULL, # Correlation decary rate over time
   # cor_decay_rate^|time difference|
-  between_period_cor = NULL,# Correlation between observations on different
+  between_period_cor = NULL, # Correlation between observations on different
   # subjects in the same cluster in different time periods
   within_subject_cor = NULL # Correlation between observations on the same
   # subject in different time periods
-  ) {
-
+) {
   design_type_sanitized <- tolower(design_type) %>% stringr::str_trim(.)
 
   # Check inputs
-  .CheckCorMatInputs(n_obs_periods = n_obs_periods,
-                     n_subj_per_period = n_subj_per_period,
-                     design_type_sanitized = design_type_sanitized,
-                     within_period_cor = within_period_cor,
-                     between_period_cor = between_period_cor,
-                     within_subject_cor = within_subject_cor,
-                     cor_decay_rate = cor_decay_rate)
-  
+  .CheckCorMatInputs(
+    n_obs_periods = n_obs_periods,
+    n_subj_per_period = n_subj_per_period,
+    design_type_sanitized = design_type_sanitized,
+    within_period_cor = within_period_cor,
+    between_period_cor = between_period_cor,
+    within_subject_cor = within_subject_cor,
+    cor_decay_rate = cor_decay_rate
+  )
+
   # Not logically exhaustive, but all other cases are errors that should be
   # caught by input checks
   cor_structure <- dplyr::case_when(
@@ -78,27 +79,32 @@ SpecifyCorrelationMatrix <- function(
   )
 
   correlation_matrix <- switch(cor_structure,
-   exponential_decay = .CreateExponentialDecayCorMat(
-     n_obs_periods = n_obs_periods,
-     n_subj_per_period = n_subj_per_period,
-     within_period_cor = within_period_cor,
-     cor_decay_rate = cor_decay_rate),
-   nested_exchangeable = .CreateNestedExchangeableCorMat(
-     n_obs_periods = n_obs_periods,
-     n_subj_per_period = n_subj_per_period,
-     within_period_cor = within_period_cor,
-     between_period_cor = between_period_cor),
-   proportional_decay = .CreateProportionalDecayCorMat(
-     n_obs_periods = n_obs_periods,
-     n_subj_per_period = n_subj_per_period,
-     within_period_cor = within_period_cor,
-     cor_decay_rate = cor_decay_rate),
-   block_exchangeable = .CreateBlockExchangeableCorMat(
-     n_obs_periods = n_obs_periods,
-     n_subj_per_period = n_subj_per_period,
-     within_period_cor = within_period_cor,
-     between_period_cor = between_period_cor,
-     within_subject_cor = within_subject_cor))
+                               exponential_decay = .CreateExponentialDecayCorMat(
+                                 n_obs_periods = n_obs_periods,
+                                 n_subj_per_period = n_subj_per_period,
+                                 within_period_cor = within_period_cor,
+                                 cor_decay_rate = cor_decay_rate
+                               ),
+                               nested_exchangeable = .CreateNestedExchangeableCorMat(
+                                 n_obs_periods = n_obs_periods,
+                                 n_subj_per_period = n_subj_per_period,
+                                 within_period_cor = within_period_cor,
+                                 between_period_cor = between_period_cor
+                               ),
+                               proportional_decay = .CreateProportionalDecayCorMat(
+                                 n_obs_periods = n_obs_periods,
+                                 n_subj_per_period = n_subj_per_period,
+                                 within_period_cor = within_period_cor,
+                                 cor_decay_rate = cor_decay_rate
+                               ),
+                               block_exchangeable = .CreateBlockExchangeableCorMat(
+                                 n_obs_periods = n_obs_periods,
+                                 n_subj_per_period = n_subj_per_period,
+                                 within_period_cor = within_period_cor,
+                                 between_period_cor = between_period_cor,
+                                 within_subject_cor = within_subject_cor
+                               )
+  )
 
   return(correlation_matrix)
 }
@@ -134,34 +140,37 @@ SpecifyCorrelationMatrix <- function(
 #'
 #' @examples
 #' \dontrun{
-#' .CreateNestedExchangeableCorMat(n_obs_periods = 2, n_subj_per_period = 3,
-#' within_period_cor = 0.1, between_period_cor = 0.2)
+#' .CreateNestedExchangeableCorMat(
+#'   n_obs_periods = 2, n_subj_per_period = 3,
+#'   within_period_cor = 0.1, between_period_cor = 0.2
+#' )
 #' }
 #'
 .CreateNestedExchangeableCorMat <- function(n_obs_periods,
-                                           n_subj_per_period,
-                                           within_period_cor,
-                                           between_period_cor) {
-#TODO: Maybe just replace this with a call to .CreateBlockExchangeableCorMat with within_subject_cor = between_period_cor
+                                            n_subj_per_period,
+                                            within_period_cor,
+                                            between_period_cor) {
+  # TODO: Maybe just replace this with a call to .CreateBlockExchangeableCorMat with within_subject_cor = between_period_cor
 
   # Create sub-components of the correlation matrix
   diagonal_mat <- diag(1 - within_period_cor,
-                       nrow = n_obs_periods * n_subj_per_period)
+                       nrow = n_obs_periods * n_subj_per_period
+  )
 
   within_period_component <- (within_period_cor - between_period_cor) *
-    diag(1, n_obs_periods)  %x% matrix(data = 1, nrow = n_subj_per_period, ncol = n_subj_per_period)
+    diag(1, n_obs_periods) %x% matrix(data = 1, nrow = n_subj_per_period, ncol = n_subj_per_period)
 
   between_period_component <- between_period_cor * matrix(
     data = 1,
     nrow = n_obs_periods * n_subj_per_period,
-    ncol = n_obs_periods * n_subj_per_period)
+    ncol = n_obs_periods * n_subj_per_period
+  )
 
   # Create nested exchangeable correlation matrix
-  nested_exchangeable_cor_mat <-   diagonal_mat +
+  nested_exchangeable_cor_mat <- diagonal_mat +
     within_period_component + between_period_component
 
   return(nested_exchangeable_cor_mat)
-
 }
 
 #' @title Create Exponential Decay Correlation Matrix
@@ -185,32 +194,34 @@ SpecifyCorrelationMatrix <- function(
 #' @noRd
 #'
 #' @examples
-#' .CreateExponentialDecayCorMat(n_obs_periods = 3,
-#'                               n_subj_per_period = 2,
-#'                               within_period_cor = 0.2,
-#'                               cor_decay_rate = 0.9)
-
-.CreateExponentialDecayCorMat <- function (n_obs_periods,
-                              n_subj_per_period,
-                              within_period_cor,
-                              cor_decay_rate){
-
+#' .CreateExponentialDecayCorMat(
+#'   n_obs_periods = 3,
+#'   n_subj_per_period = 2,
+#'   within_period_cor = 0.2,
+#'   cor_decay_rate = 0.9
+#' )
+.CreateExponentialDecayCorMat <- function(n_obs_periods,
+                                          n_subj_per_period,
+                                          within_period_cor,
+                                          cor_decay_rate) {
   cor_dim <- n_obs_periods * n_subj_per_period
 
-  cor_mat <- matrix(0, nrow = cor_dim,
-                     ncol = cor_dim)
+  cor_mat <- matrix(0,
+                    nrow = cor_dim,
+                    ncol = cor_dim
+  )
 
-  for(i in 1:cor_dim){
-    for(j in i:cor_dim){
-      if(i == j){
-        cor_mat[i,j] <- 1
+  for (i in 1:cor_dim) {
+    for (j in i:cor_dim) {
+      if (i == j) {
+        cor_mat[i, j] <- 1
       } else {
         i_period <- ceiling(i / n_subj_per_period)
         j_period <- ceiling(j / n_subj_per_period)
         period_dif <- abs(i_period - j_period)
 
-        cor_mat[i,j] <- within_period_cor * cor_decay_rate^period_dif
-        cor_mat[j,i] <- cor_mat[i,j]
+        cor_mat[i, j] <- within_period_cor * cor_decay_rate^period_dif
+        cor_mat[j, i] <- cor_mat[i, j]
       }
     }
   }
@@ -241,38 +252,41 @@ SpecifyCorrelationMatrix <- function(
 #' (and column-) dimension n_obs_periods*n_subj_per_period
 #'
 #' @examples
-#' .CreateBlockExchangeableCorMat(n_obs_periods = 2,
-#'                               n_subj_per_period = 3,
-#'                               within_period_cor = 0.1,
-#'                               between_period_cor = 0.2,
-#'                               within_subject_cor = 0.3)
+#' .CreateBlockExchangeableCorMat(
+#'   n_obs_periods = 2,
+#'   n_subj_per_period = 3,
+#'   within_period_cor = 0.1,
+#'   between_period_cor = 0.2,
+#'   within_subject_cor = 0.3
+#' )
 .CreateBlockExchangeableCorMat <- function(n_obs_periods,
-                                          n_subj_per_period,
-                                          within_period_cor,
-                                          between_period_cor,
-                                          within_subject_cor){
-
+                                           n_subj_per_period,
+                                           within_period_cor,
+                                           between_period_cor,
+                                           within_subject_cor) {
   # Create sub-components of the correlation matrix
   diagonal_mat <- diag(1 - within_period_cor + between_period_cor - within_subject_cor,
-                       nrow = n_obs_periods * n_subj_per_period)
+                       nrow = n_obs_periods * n_subj_per_period
+  )
 
   within_subj_component <- (within_subject_cor - between_period_cor) *
     matrix(data = 1, nrow = n_obs_periods, ncol = n_obs_periods) %x%
       diag(1, nrow = n_subj_per_period)
 
   within_period_component <- (within_period_cor - between_period_cor) *
-    diag(1, n_obs_periods)  %x% matrix(data = 1, nrow = n_subj_per_period, ncol = n_subj_per_period)
+    diag(1, n_obs_periods) %x% matrix(data = 1, nrow = n_subj_per_period, ncol = n_subj_per_period)
 
-  between_period_component <- between_period_cor * matrix(data = 1,
-                                                          nrow = n_obs_periods * n_subj_per_period,
-                                                          ncol = n_obs_periods * n_subj_per_period)
+  between_period_component <- between_period_cor * matrix(
+    data = 1,
+    nrow = n_obs_periods * n_subj_per_period,
+    ncol = n_obs_periods * n_subj_per_period
+  )
 
   # Create block exchangeable correlation matrix
-  block_exchangeable_cor_mat <-   diagonal_mat + within_period_component +
+  block_exchangeable_cor_mat <- diagonal_mat + within_period_component +
     within_subj_component + between_period_component
 
   return(block_exchangeable_cor_mat)
-
 }
 #' @title Create Proportional Decay Correlation Matrix
 #'
@@ -291,23 +305,27 @@ SpecifyCorrelationMatrix <- function(
 #' @return A correlation matrix following the proportional decay model with row- (and column-) dimension n_obs_periods*n_subj_per_period.
 #'
 #' @examples
-#' .CreateProportionalDecayCorMat(n_obs_periods = 3,
-#'                                n_subj_per_period = 2,
-#'                                within_period_cor = 0.2,
-#'                                cor_decay_rate = 0.9)
-.CreateProportionalDecayCorMat <- function (n_obs_periods,
+#' .CreateProportionalDecayCorMat(
+#'   n_obs_periods = 3,
+#'   n_subj_per_period = 2,
+#'   within_period_cor = 0.2,
+#'   cor_decay_rate = 0.9
+#' )
+.CreateProportionalDecayCorMat <- function(n_obs_periods,
                                            n_subj_per_period,
                                            within_period_cor,
-                                           cor_decay_rate){
+                                           cor_decay_rate) {
   cor_dim <- n_obs_periods * n_subj_per_period
 
-  cor_mat <- matrix(0, nrow = cor_dim,
-                    ncol = cor_dim)
+  cor_mat <- matrix(0,
+                    nrow = cor_dim,
+                    ncol = cor_dim
+  )
 
-  for(i in 1:cor_dim){
-    for(j in i:cor_dim){
-      if(i == j){
-        cor_mat[i,j] <- 1
+  for (i in 1:cor_dim) {
+    for (j in i:cor_dim) {
+      if (i == j) {
+        cor_mat[i, j] <- 1
       } else {
         i_period <- ceiling(i / n_subj_per_period)
         j_period <- ceiling(j / n_subj_per_period)
@@ -315,11 +333,12 @@ SpecifyCorrelationMatrix <- function(
 
         same_individual_indicator <- (i %% n_subj_per_period == j %% n_subj_per_period)
 
-        cor_mat[i,j] <- ifelse(same_individual_indicator == TRUE,
-                                 cor_decay_rate^period_dif,
-                                 within_period_cor * cor_decay_rate^period_dif)
+        cor_mat[i, j] <- ifelse(same_individual_indicator == TRUE,
+                                cor_decay_rate^period_dif,
+                                within_period_cor * cor_decay_rate^period_dif
+        )
 
-        cor_mat[j,i] <- cor_mat[i,j]
+        cor_mat[j, i] <- cor_mat[i, j]
       }
     }
   }
@@ -352,7 +371,6 @@ SpecifyCorrelationMatrix <- function(
 #'
 #' # Example usage:
 #'
-
 .CheckCorMatInputs <- function(n_obs_periods,
                                n_subj_per_period,
                                design_type_sanitized,
@@ -360,25 +378,30 @@ SpecifyCorrelationMatrix <- function(
                                between_period_cor = NULL,
                                within_subject_cor = NULL,
                                cor_decay_rate = NULL) {
+  .CheckCorMatInputTypes(
+    n_obs_periods = n_obs_periods,
+    n_subj_per_period = n_subj_per_period,
+    design_type = design_type_sanitized,
+    within_period_cor = within_period_cor,
+    between_period_cor = between_period_cor,
+    within_subject_cor = within_subject_cor,
+    cor_decay_rate = cor_decay_rate
+  )
 
-  .CheckCorMatInputTypes(n_obs_periods = n_obs_periods,
-                         n_subj_per_period = n_subj_per_period,
-                         design_type = design_type_sanitized,
-                         within_period_cor = within_period_cor,
-                         between_period_cor = between_period_cor,
-                         within_subject_cor = within_subject_cor,
-                         cor_decay_rate = cor_decay_rate)
+  .CheckCorMatInputsNumericVals(
+    n_obs_periods = n_obs_periods,
+    n_subj_per_period = n_subj_per_period,
+    within_period_cor = within_period_cor,
+    between_period_cor = between_period_cor,
+    within_subject_cor = within_subject_cor,
+    cor_decay_rate = cor_decay_rate
+  )
 
-  .CheckCorMatInputsNumericVals(n_obs_periods = n_obs_periods,
-                                n_subj_per_period = n_subj_per_period,
-                                within_period_cor = within_period_cor,
-                                between_period_cor = between_period_cor,
-                                within_subject_cor = within_subject_cor,
-                                cor_decay_rate = cor_decay_rate)
-
-  .CheckCorMatInputsLogic(design_type_sanitized = design_type_sanitized,
-                          between_period_cor = between_period_cor,
-                          cor_decay_rate = cor_decay_rate)
+  .CheckCorMatInputsLogic(
+    design_type_sanitized = design_type_sanitized,
+    between_period_cor = between_period_cor,
+    cor_decay_rate = cor_decay_rate
+  )
 
   return(NULL)
 }
@@ -398,40 +421,38 @@ SpecifyCorrelationMatrix <- function(
 #' # Example usage:
 #' .CheckCorMatInputsLogic(design_type_sanitized = "cohort", between_period_cor = 0.3, cor_decay_rate = 0.8)
 #'
-
 .CheckCorMatInputsLogic <- function(design_type_sanitized,
                                     between_period_cor = NULL,
-                                    cor_decay_rate = NULL){
-
-  if((design_type_sanitized %in% c("cross", "cohort")) == FALSE){
+                                    cor_decay_rate = NULL) {
+  if ((design_type_sanitized %in% c("cross", "cohort")) == FALSE) {
     stop("ERROR: design_type must be either 'cross' or 'cohort'")
   }
 
   # Check that the inputs only contain parameters for one correlation structure
 
-  if(any(is.null(c(between_period_cor, within_subject_cor)) == FALSE) & !is.null(cor_decay_rate)) {
+  if (any(is.null(c(between_period_cor, within_subject_cor)) == FALSE) & !is.null(cor_decay_rate)) {
     stop("ERROR: Parameters for both exchangeable and decay correlation structures were provided. Please provide parameters for only one correlation structure.")
   }
-  
-  if(all(is.null(c(between_period_cor, within_subject_cor, cor_decay_rate)))) {
+
+  if (all(is.null(c(between_period_cor, within_subject_cor, cor_decay_rate)))) {
     stop("ERROR: No parameters for any correlation structure were provided. Please provide parameters for one correlation structure.")
   }
 
   # Check that the necessary parameters for each correlation structure type are provided
-  if(is.null(cor_decay_rate)){
-    if (design_type_sanitized == "cross" && any(is.null(c(within_period_cor, between_period_cor)))){
+  if (is.null(cor_decay_rate)) {
+    if (design_type_sanitized == "cross" && any(is.null(c(within_period_cor, between_period_cor)))) {
       stop("ERROR: For the nested exchangeable structure, you must provide within_period_cor and between_period_cor")
     }
 
-    if (design_type_sanitized == "cross" && !is.null(within_subject_cor)){
+    if (design_type_sanitized == "cross" && !is.null(within_subject_cor)) {
       stop("ERROR: within_subject_cor must not be speficied in cross-sectional designs")
     }
-    
-    if (design_type_sanitized == "cohort" && any(is.null(c(within_period_cor, between_period_cor, within_subject_cor)))){
+
+    if (design_type_sanitized == "cohort" && any(is.null(c(within_period_cor, between_period_cor, within_subject_cor)))) {
       stop("ERROR: For the block exchangeable structure, you must provide within_period_cor, between_period_cor, and within_subject_cor")
     }
   }
-  
+
   return(NULL)
 }
 
@@ -441,27 +462,26 @@ SpecifyCorrelationMatrix <- function(
                                           within_period_cor = NULL,
                                           between_period_cor = NULL,
                                           within_subject_cor = NULL,
-                                          cor_decay_rate = NULL){
-
+                                          cor_decay_rate = NULL) {
   # Check that correlations are between 0 and 1
-  if (!is.null(within_period_cor) && (within_period_cor <= 0 || within_period_cor >= 1)){
+  if (!is.null(within_period_cor) && (within_period_cor <= 0 || within_period_cor >= 1)) {
     stop("ERROR: within_period_cor must be between 0 and 1 exclusive")
   }
-  if (!is.null(between_period_cor) && (between_period_cor <= 0 || between_period_cor >= 1)){
+  if (!is.null(between_period_cor) && (between_period_cor <= 0 || between_period_cor >= 1)) {
     stop("ERROR: between_period_cor must be between 0 and 1 exclusive")
   }
-  if (!is.null(within_subject_cor) && (within_subject_cor <= 0 || within_subject_cor >= 1)){
+  if (!is.null(within_subject_cor) && (within_subject_cor <= 0 || within_subject_cor >= 1)) {
     stop("ERROR: within_subject_cor must be between 0 and 1 exclusive")
   }
-  if (!is.null(cor_decay_rate) && (cor_decay_rate <= 0 || cor_decay_rate >= 1)){
+  if (!is.null(cor_decay_rate) && (cor_decay_rate <= 0 || cor_decay_rate >= 1)) {
     stop("ERROR: cor_decay_rate must be between 0 and 1 exclusive")
   }
 
   # Check that n_obs_periods and n_subj_per_period are positive integers
-  if (n_obs_periods < 1 || !all.equal(n_obs_periods %% 1, 0)){
+  if (n_obs_periods < 1 || !all.equal(n_obs_periods %% 1, 0)) {
     stop("ERROR: n_obs_periods must be a positive integer")
   }
-  if (n_subj_per_period < 1 || !all.equal(n_subj_per_period %% 1, 0)){
+  if (n_subj_per_period < 1 || !all.equal(n_subj_per_period %% 1, 0)) {
     stop("ERROR: n_subj_per_period must be a positive integer")
   }
 
@@ -469,39 +489,38 @@ SpecifyCorrelationMatrix <- function(
 }
 
 .CheckCorMatInputTypes <- function(n_obs_periods,
-                                  n_subj_per_period,
-                                  design_type,
-                                  within_period_cor,
-                                  between_period_cor = NULL,
-                                  within_subject_cor = NULL,
-                                  cor_decay_rate = NULL){
-
-  if(is.character(design_type) == FALSE){
+                                   n_subj_per_period,
+                                   design_type,
+                                   within_period_cor,
+                                   between_period_cor = NULL,
+                                   within_subject_cor = NULL,
+                                   cor_decay_rate = NULL) {
+  if (is.character(design_type) == FALSE) {
     stop("ERROR: design_type must be a character string")
   }
 
   # Check that the required inputs are numeric
-  if(all(is.numeric(c(n_obs_periods, n_subj_per_period, within_period_cor))) == FALSE){
-  stop("ERROR: n_obs_periods, n_subj_per_period, and within_period_cor must be numeric")
+  if (all(is.numeric(c(n_obs_periods, n_subj_per_period, within_period_cor))) == FALSE) {
+    stop("ERROR: n_obs_periods, n_subj_per_period, and within_period_cor must be numeric")
   }
 
   # Check that the potentially null correlations are numeric
-  if (!is.null(between_period_cor) && !is.numeric(between_period_cor)){
-  stop("ERROR: between_period_cor must be numeric")
+  if (!is.null(between_period_cor) && !is.numeric(between_period_cor)) {
+    stop("ERROR: between_period_cor must be numeric")
   }
-  if (!is.null(within_subject_cor) && !is.numeric(within_subject_cor)){
-  stop("ERROR: within_subject_cor must be numeric")
+  if (!is.null(within_subject_cor) && !is.numeric(within_subject_cor)) {
+    stop("ERROR: within_subject_cor must be numeric")
   }
-  if (!is.null(cor_decay_rate) && !is.numeric(cor_decay_rate)){
-  stop("ERROR: cor_decay_rate must be numeric")
+  if (!is.null(cor_decay_rate) && !is.numeric(cor_decay_rate)) {
+    stop("ERROR: cor_decay_rate must be numeric")
   }
 
   input_list <- list(n_obs_periods, n_subj_per_period, design_type, within_period_cor, between_period_cor, within_subject_cor, cor_decay_rate)
-  if(any(lapply(input_list, FUN = length) > 1)){
+  if (any(lapply(input_list, FUN = length) > 1)) {
     include_in_error_msg <- lapply(input_list, FUN = length) > 1
 
     stop(paste("ERROR: The following inputs must be single values:", paste(names(input_list)[include_in_error_msg], collapse = ", ")))
   }
 
-    return(NULL)
+  return(NULL)
 }
