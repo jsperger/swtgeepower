@@ -479,6 +479,51 @@ test_df,
 ##
 ##############################################################################################
 
+.CheckCalcPowerInputs <- function(
+  design_mat_list, working_cor_mat_list, incidence_mat_list, trt_param_col_vec,
+  dispersion_scalar, var_fun, link, response_type, alpha, test_df, contrast_mat,
+  null_val_vec, power_only_flag) {
+
+  checkmate::expect_list(design_mat_list,
+                         any.missing = FALSE,
+                         types = "numeric",
+                         min.len = 1,
+                         null.ok = FALSE)
+
+  checkmate::expect_list(working_cor_mat_list,
+                         any.missing = FALSE,
+                         types = "numeric",
+                         min.len = 1,
+                         null.ok = FALSE)
+
+  checkmate::expect_list(incidence_mat_list,
+                         any.missing = FALSE,
+                         types = "numeric",
+                         min.len = 1,
+                         null.ok = TRUE)
+
+  # Check if lists are of the same length
+  checkmate::expect_equal(length(design_mat_list), length(working_cor_mat_list))
+
+  if(!is.null(incidence_mat_list)){
+    checkmate::expect_equal(length(design_mat_list), length(incidence_mat_list))
+  }
+
+
+  checkmate::expect_numeric(trt_param_col_vec, any.missing = FALSE)
+  checkmate::expect_number(dispersion_scalar, lower = 0)
+  checkmate::expect_function(var_fun)
+  checkmate::expect_function(link)
+  checkmate::expect_choice(response_type, choices = c("continuous", "count", "binary")) # Replace with actual choices
+  checkmate::expect_number(alpha, lower = 0, upper = 1)
+  checkmate::expect_number(test_df, lower = 1)
+  checkmate::expect_matrix(contrast_mat, any.missing = FALSE)
+  checkmate::expect_numeric(null_val_vec, any.missing = FALSE)
+  checkmate::expect_flag(power_only_flag)
+
+  return(NULL)
+}
+
 #' @title Check the validity of the inputs to the GEE power calculation
 #'
 .CheckCalcPowerInputs <- function(
