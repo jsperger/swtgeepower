@@ -1,36 +1,5 @@
-##############################################################################################
-## GEE Power Calculation Wrapper
-##
-##############################################################################################
-
-
-#' @title Perform the GEE-based power calculation for stepped wedge trials
-#' and multilevel cluster randomized trials. Wrapper
-#'
-#' @description
-#'
-
-CalcGEEPower <- function(design_mat_list = NULL,
-                         param_vec = NULL,
-                         n_clust_per_seq = NULL,
-                         n_ind_per_clust = NULL,
-                         clust_trt_effect = NULL,
-                         ind_trt_effect = NULL,
-                         interaction_effect = NULL,
-                         period_effect_vec = NULL,
-                         incr_effect_scalar = NULL,
-                         var_fun,
-                         cor_mat_list = NULL,
-                         incidence_mat_list = NULL,
-                         dist = "normal",
-                         link = "identity",
-                         dispersion_scalar_scalar = NULL,
-                         alpha = .05,
-                         test_df,
-                         contrast_mat = NULL) {
-  stop("This function is not yet implemented")
-}
-
+# Internal functions for calculating power. These functions are not intended to be called directly by the user.
+# The user-facing functions are in the file wrappers.R
 
 ##############################################################################################
 ## GEE Power Calculation Internal Functions
@@ -50,7 +19,7 @@ CalcGEEPower <- function(design_mat_list = NULL,
 #' @param design_mat_list A list of design matrices, one for each cluster.
 #' @param working_cor_mat_list A list of working correlation matrices, one for each cluster.
 #' @param incidence_mat_list A list of incidence matrices, one for each cluster.
-#' @param trt_param_col_vec A column vector of treatment parameters.
+#' @param dgm_param_col_vec A column vector of all data generating model parameters.
 #' @param dispersion_scalar The dispersion parameter for the GEE model.
 #' @param var_fun A function defining the variance as a function of the mean.
 #' @param link The link function for the GEE model.
@@ -86,8 +55,8 @@ CalcGEEPower <- function(design_mat_list = NULL,
 
 .CalcPower <- function(design_mat_list,
                        working_cor_mat_list,
-                       incidence_mat_list,
-                       trt_param_col_vec,
+                       incidence_mat_list = NULL,
+                       dgm_param_col_vec,
                        dispersion_scalar,
                        var_fun,
                        link,
@@ -97,6 +66,21 @@ CalcGEEPower <- function(design_mat_list = NULL,
                        contrast_mat,
                        null_val_vec,
                        power_only_flag = FALSE) {
+
+  .CheckCalcPowerInputs(design_mat_list = design_mat_list,
+                        working_cor_mat_list = working_cor_mat_list,
+                        incidence_mat_list = incidence_mat_list,
+                        dgm_param_col_vec = dgm_param_col_vec,
+                        dispersion_scalar = dispersion_scalar,
+                        var_fun = var_fun,
+                        link = link,
+                        response_type = response_type,
+                        alpha = alpha,
+                        test_df = test_df,
+                        contrast_mat = contrast_mat,
+                        null_val_vec = null_val_vec,
+                        power_only_flag = power_only_flag)
+
   n_clust <- length(design_mat_list)
 
   # Create placeholder lists
@@ -109,7 +93,7 @@ CalcGEEPower <- function(design_mat_list = NULL,
   for (i in 1:n_clust) {
     clust_mu_vec <- .CreateMuiVector(
       design_mat = design_mat_list[[i]],
-      trt_param_col_vec = trt_param_col_vec,
+      dgm_param_col_vec = dgm_param_col_vec,
       response_type = response_type,
       link = link
     )
@@ -163,14 +147,14 @@ CalcGEEPower <- function(design_mat_list = NULL,
   )
 
   # Calculate the critical value for the Wald test
-  null_crit_val <- .CalcWaldCritVal(
+  null_crit_val <- .CalcWaldNullCritVal(
     alpha = alpha,
     test_df = test_df
   )
 
   # Calculate the power of the test
   power <- 1 - pchisq(
-    q = crit_val,
+    q = null_crit_val,
     df = test_df,
     ncp = noncentrality_param
   )
@@ -195,7 +179,7 @@ CalcGEEPower <- function(design_mat_list = NULL,
 #' treatment parameters, response type, and link function.
 #'
 #' @param design_mat A numeric matrix representing the design of the experiment for a particular cluster.
-#' @param trt_param_vec A numeric vector containing the treatment parameters.
+#' @param dgm_param_col_vec A numeric vector containing the treatment parameters.
 #' @param response_type A string indicating the type of the response variable (e.g., 'count', 'binary').
 #' @param link A string specifying the link function to use (e.g., 'identity', 'logit', 'log').
 #'
@@ -211,11 +195,11 @@ CalcGEEPower <- function(design_mat_list = NULL,
 #'
 #' @keywords internal
 .CreateMuiVector <- function(design_mat,
-                             trt_param_vec,
+                             dgm_param_col_vec,
                              response_type,
                              link) {
   # Expected response on the scale of the link function
-  linear_pred_vec <- design_mat %*% trt_param_vec
+  linear_pred_vec <- design_mat %*% dgm_param_col_vec
 
   mu_vec <- switch(link,
                    identity = linear_pred_vec,
@@ -345,6 +329,7 @@ CalcGEEPower <- function(design_mat_list = NULL,
 
 .CalcModelBasedVariance <- function(mean_jacobian_mat_list,
                                     var_mat_vi_list) {
+
   param_dim <- ncol(mean_jacobian_mat_list[[1]])
 
   vinv_list <- lapply(var_mat_vi_list, solve)
@@ -496,7 +481,7 @@ CalcGEEPower <- function(design_mat_list = NULL,
 ##############################################################################################
 
 .CheckCalcPowerInputs <- function(
-  design_mat_list, working_cor_mat_list, incidence_mat_list, trt_param_col_vec,
+  design_mat_list, working_cor_mat_list, incidence_mat_list, dgm_param_col_vec,
   dispersion_scalar, var_fun, link, response_type, alpha, test_df, contrast_mat,
   null_val_vec, power_only_flag) {
   checkmate::expect_list(design_mat_list,
@@ -528,7 +513,7 @@ CalcGEEPower <- function(design_mat_list = NULL,
   }
 
 
-  checkmate::expect_numeric(trt_param_col_vec, any.missing = FALSE)
+  checkmate::expect_numeric(dgm_param_col_vec, any.missing = FALSE)
   checkmate::expect_number(dispersion_scalar, lower = 0)
   checkmate::expect_function(var_fun)
   checkmate::expect_function(link)
@@ -539,57 +524,5 @@ CalcGEEPower <- function(design_mat_list = NULL,
   checkmate::expect_numeric(null_val_vec, any.missing = FALSE)
   checkmate::expect_flag(power_only_flag)
 
-  return(NULL)
-}
-
-#' @title Check the validity of the inputs to the GEE power calculation
-#'
-.CheckCalcPowerInputs <- function(
-  design_mat_list, working_cor_mat_list, incidence_mat_list, trt_param_col_vec,
-  dispersion_scalar, var_fun, link, response_type, alpha, test_df, contrast_mat,
-  null_val_vec, power_only_flag) {
-  .CheckNumericVals(alpha = alpha, dispersion_scalar = dispersion_scalar, test_df = test_df)
-
-  .CheckListLengths(design_mat_list = design_mat_list, working_cor_mat_list = working_cor_mat_list, incidence_mat_list = incidence_mat_list)
-
-  .CheckInputTypes(design_mat_list = design_mat_list, working_cor_mat_list = working_cor_mat_list, incidence_mat_list = incidence_mat_list, trt_param_col_vec = trt_param_col_vec, dispersion_scalar = dispersion_scalar, var_fun = var_fun, link = link, response_type = response_type, alpha = alpha, test_df = test_df, contrast_mat = contrast_mat, null_val_vec = null_val_vec, power_only_flag = power_only_flag)
-
-  return(NULL)
-}
-
-.CheckNumericVals <- function(alpha, dispersion_scalar, test_df) {
-  if (alpha <= 0 || alpha >= 1) {
-    stop("ERROR: alpha must be between 0 and 1 exclusive")
-  }
-  if (dispersion_scalar <= 0) {
-    stop("ERROR: dispersion_scalar must be a positive value")
-  }
-  if (test_df <= 0 || !all.equal(test_df %% 1, 0)) {
-    stop("ERROR: test_df must be a positive integer")
-  }
-  return(NULL)
-}
-
-.CheckListLengths <- function(design_mat_list, working_cor_mat_list, incidence_mat_list) {
-  len1 <- length(design_mat_list)
-  len2 <- length(working_cor_mat_list)
-  len3 <- length(incidence_mat_list)
-
-  if (!(len1 == len2 && len2 == len3)) {
-    stop("ERROR: The lengths of design_mat_list, working_cor_mat_list, and incidence_mat_list must be the same")
-  }
-  return(NULL)
-}
-
-.CheckNumericVals <- function(alpha, dispersion_scalar, test_df) {
-  if (alpha <= 0 || alpha >= 1) {
-    stop("ERROR: alpha must be between 0 and 1 exclusive")
-  }
-  if (dispersion_scalar <= 0) {
-    stop("ERROR: dispersion_scalar must be a positive value")
-  }
-  if (test_df <= 0 || !all.equal(test_df %% 1, 0)) {
-    stop("ERROR: test_df must be a positive integer")
-  }
   return(NULL)
 }
