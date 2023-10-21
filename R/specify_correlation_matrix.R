@@ -37,7 +37,7 @@
 #'
 #' @export
 #'
-SpecifyCorrelationMatrix <- function(
+SpecifyWorkingCorrelationMatrix <- function(
   n_subj_per_period, # Number of individuals in a cluster
   n_obs_periods, # Number of observed time periods
   design_type, # Type of design
