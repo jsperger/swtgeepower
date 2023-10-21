@@ -479,7 +479,7 @@
 ## GEE Power Validity Checks
 ##
 ###############################################################################
-
+#' @keywords internal,check
 .CheckCalcPowerInputs <- function(
   design_mat_list, working_cor_mat_list, incidence_mat_list, dgm_param_col_vec,
   dispersion_scalar, var_fun, link, response_type, alpha, test_df, contrast_mat,

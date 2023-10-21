@@ -1,24 +1,20 @@
-#' @title Create study design matrix for a complete study where every cluster
-#' observed in every period.
+#' @title Create Cluster Complete Design Matrix List
 #'
 #' @description
-#' r lifecycle::badge("experimental")`
+#' Creates a list of design matrices for multiple clusters over a given number of study periods.
+#' These matrices account for the study design, treatment sequences, time effects, and other relevant factors.
 #'
-#' Simple function that assumes that each cluster is observed in each time
-#' period, and that every sequence has at least one period on control before
-#' crossing over to treatment.
+#' @param n_study_periods Integer. The number of study periods.
+#' @param n_clust_trt_seqs Integer. The number of cluster treatment sequences.
+#' @param n_clust_per_seq Integer. The number of clusters per sequence.
+#' @param crossover_time_period_vec Numeric vector. The time periods for crossover.
+#' @param n_ind_per_clust Integer. The number of individuals per cluster.
+#' @param time_model_type Character. The type of time model ("linear" or "categorical").
+#' @param trt_model_type Character. The type of treatment model ("average" or "linear").
+#' @param linear_trt_scale_factor Numeric. The scaling factor for linear treatment effects. Default is 1.
+#' @param mli_study_flag Logical. Flag indicating if the study is a multi-level intervention study. Default is FALSE.
 #'
-#'
-#' @param n_study_periods The total number of time periods in the study.
-#' @param n_obs_per_sequence
-#' @param time_model_type
-#' @param trt_model_type
-#' @param linear_trt_scale_factor
-#'
-#' @return A matrix
-#'
-#' @export
-
+#' @return A list of design matrices.
 CreateClusterCompleteDesignMatrixList <- function(
   n_study_periods,
   n_clust_trt_seqs,
@@ -48,7 +44,7 @@ CreateClusterCompleteDesignMatrixList <- function(
     seq_upper_clust_index <- i*n_clust_per_seq
     cur_seq_indices <- seq(seq_lower_clust_index, seq_upper_clust_index)
 
-    design_mat_list[[cur_seq_indices]] <- .CreateClusterCompleteDesignMatrix(
+    sequence_design_mat <- .CreateClusterCompleteDesignMatrix(
       n_study_periods = n_study_periods,
       mli_study_flag = mli_study_flag,
       crossover_time_period = crossover_time_period_vec[i],
@@ -56,12 +52,33 @@ CreateClusterCompleteDesignMatrixList <- function(
       time_model_type = time_model_type,
       trt_model_type = trt_model_type,
       linear_trt_scale_factor = linear_trt_scale_factor)
+
+    design_mat_list[c(cur_seq_indices)] <- list(sequence_design_mat)
   }
-  
+
+  .CheckClusterCompleteDesignMatrixOutput(design_mat_list)
+
   return(design_mat_list)
 
 }
 
+#' @title Create Cluster Complete Design Matrix
+#'
+#' @description
+#' Creates a design matrix for a single cluster over a given number of study periods.
+#' This matrix accounts for the study design, treatment sequences, time effects, and other relevant factors.
+#'
+#' @param n_study_periods Integer. The number of study periods.
+#' @param mli_study_flag Logical. Flag indicating if the study is a multi-level intervention study.
+#' @param crossover_time_period Integer. The time period for crossover.
+#' @param n_ind_per_clust Integer. The number of individuals per cluster.
+#' @param time_model_type Character. The type of time model ("linear" or "categorical").
+#' @param trt_model_type Character. The type of treatment model ("average" or "linear").
+#' @param linear_trt_scale_factor Numeric. The scaling factor for linear treatment effects. Default is 1.
+#'
+#' @return A matrix that serves as the design matrix for a single cluster.
+#'
+#' @keywords internal
 .CreateClusterCompleteDesignMatrix <- function(n_study_periods,
                                                mli_study_flag,
                                                crossover_time_period,
@@ -139,7 +156,17 @@ CreateClusterCompleteDesignMatrixList <- function(
 ## Design Matrix Input Checks
 ##
 ###############################################################################
-
+#' @title Check Inputs for CreateClusterCompleteDesignMatrixList
+#'
+#' @description
+#' This function checks the validity of the inputs for the `CreateClusterCompleteDesignMatrixList` function.
+#' It uses the `checkmate` package to perform these checks.
+#'
+#' @details
+#' For more information on the parameters, see \code{\link{CreateClusterCompleteDesignMatrixList}}.
+#'
+#' @return NULL. The function performs checks and will return an error if any check fails.
+#' @keywords internal,check
 .CheckClusterCompleteDesignMatrixInputs <- function(
   n_study_periods,
   n_clust_trt_seqs,
@@ -165,6 +192,25 @@ CreateClusterCompleteDesignMatrixList <- function(
   checkmate::expect_numeric(linear_trt_scale_factor)
 
   checkmate::expect_flag(mli_study_flag)
+
+  return(NULL)
+}
+
+#' @title Check Output for CreateClusterCompleteDesignMatrixList
+#'
+#' @description
+#' This function checks the validity of the output for the `CreateClusterCompleteDesignMatrixList` function.
+#' Specifically, it checks the number of columns in each matrix in the list to ensure they are consistent.
+#'
+#' @details
+#' For more information on the expected output structure, see \code{\link{CreateClusterCompleteDesignMatrixList}}.
+#'
+#' @return NULL. The function performs checks and will return an error if any check fails.
+#' @keywords internal,check
+.CheckClusterCompleteDesignMatrixOutput <- function(design_mat_list){
+  columns_per_matrix <- sapply(design_mat_list, ncol, simplify = TRUE, USE.NAMES = FALSE)
+
+  expect_equal(unique(columns_per_matrix), 1)
 
   return(NULL)
 }

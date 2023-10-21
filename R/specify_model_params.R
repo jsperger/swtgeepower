@@ -173,7 +173,7 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
   #' @return NULL. Function returns NULL if all checks pass.
   #'
   #' @seealso \code{\link{SpecifyDataGeneratingModel}}
-  #' @keywords internal
+#' @keywords internal,check
 .CheckDGMInputs <- function(n_study_periods,
                             mli_study_flag,
                             time_model_type,
@@ -226,7 +226,7 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
 #' @return NULL. Function returns NULL if all checks pass.
 #'
 #' @seealso \code{\link{SpecifyDataGeneratingModel}}
-#' @keywords internal
+#' @keywords internal,check
 .CheckDGMOutput <- function(dgm_param_vec){
   checkmate::expect_numeric(dgm_param_vec, any.missing = FALSE)
   checkmate::expect_names(names(dgm_param_vec))

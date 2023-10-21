@@ -4,12 +4,12 @@
 ##############################################################################################
 
 
-#' @title Perform the GEE-based power calculation for stepped wedge trials
-#' and multilevel cluster randomized trials. Wrapper
+#' @title GEE-based power calculation for SWTs and MLIs
 #'
 #' @description
+#'Perform the GEE-based power calculation for stepped wedge trials
+#' and multilevel cluster randomized trials.
 #'
-
 CalcSWTPower <- function(design_mat_list = NULL,
                          dgm_param_vec = NULL,
                          n_clust_per_seq = NULL,

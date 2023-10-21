@@ -12,9 +12,22 @@
 
 
 ###############################################################################
-## Correlation Matrix Wrapper Function
+## Correlation Matrix Wrapper Functions
 ##
 ###############################################################################
+CreateClusterCompleteDesignMatrixList <- function(
+  n_study_periods,
+  n_clust_trt_seqs,
+  n_clust_per_seq,
+  crossover_time_period_vec,
+  n_ind_per_clust,
+  time_model_type,
+  trt_model_type,
+  linear_trt_scale_factor = 1,
+  mli_study_flag = FALSE){
+
+}
+
 
 #' @title Specify and Create a Correlation Matrix
 #'
@@ -37,7 +50,7 @@
 #'
 #' @export
 #'
-SpecifyWorkingCorrelationMatrix <- function(
+SpecifyWorkingCorMat<- function(
   n_subj_per_period, # Number of individuals in a cluster
   n_obs_periods, # Number of observed time periods
   design_type, # Type of design
