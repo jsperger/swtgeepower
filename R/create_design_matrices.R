@@ -8,10 +8,11 @@
 #' period, and that every sequence has at least one period on control before
 #' crossing over to treatment.
 #'
+#'
 #' @param n_study_periods The total number of time periods in the study.
 #' @param n_obs_per_sequence
-#' @param time_effects_type
-#' @param trt_effects_type
+#' @param time_model_type
+#' @param trt_model_type
 #' @param linear_trt_scale_factor
 #'
 #' @return A matrix
@@ -22,25 +23,39 @@ CreateClusterCompleteDesignMatrixList <- function(
   n_study_periods,
   n_clust_trt_seqs,
   n_clust_per_seq,
-  crossover_time_period,
+  crossover_time_period_vec,
   n_ind_per_clust,
   time_model_type,
-  treatment_model_type,
+  trt_model_type,
   linear_trt_scale_factor = 1,
   mli_study_flag = FALSE){
+
+  .CheckClusterCompleteDesignMatrixInputs(
+    n_study_periods = n_study_periods,
+    n_clust_trt_seqs = n_clust_trt_seqs,
+    n_clust_per_seq = n_clust_per_seq,
+    crossover_time_period_vec = crossover_time_period_vec,
+    n_ind_per_clust = n_ind_per_clust,
+    time_model_type = time_model_type,
+    trt_model_type = trt_model_type,
+    linear_trt_scale_factor = linear_trt_scale_factor,
+    mli_study_flag = mli_study_flag)
   
-  design_mat_list <- vector("list", length = n_clust_trt_seqs*n_clust_per_seq
+  design_mat_list <- vector("list", length = n_clust_trt_seqs*n_clust_per_seq)
   
-  for(i in 1:n_clust_trt_seqs){
+  for (i in 1:n_clust_trt_seqs) {
     seq_lower_clust_index <- (i - 1)*n_clust_per_seq + 1
     seq_upper_clust_index <- i*n_clust_per_seq
-    design_mat_list[[seq_lower_clust_index:seq_upper_clust_index]] <- CreateClusterCompleteDesignMatrix(n_study_periods = n_study_periods,
-                                                              mli_study_flag = mli_study_flag,
-                                                              crossover_time_period = crossover_time_period[i],
-                                                              n_ind_per_clust = n_ind_per_clust,
-                                                              time_model_type = time_model_type,
-                                                              treatment_model_type = treatment_model_type,
-                                                              linear_trt_scale_factor = linear_trt_scale_factor)
+    cur_seq_indices <- seq(seq_lower_clust_index, seq_upper_clust_index)
+
+    design_mat_list[[cur_seq_indices]] <- .CreateClusterCompleteDesignMatrix(
+      n_study_periods = n_study_periods,
+      mli_study_flag = mli_study_flag,
+      crossover_time_period = crossover_time_period_vec[i],
+      n_ind_per_clust = n_ind_per_clust,
+      time_model_type = time_model_type,
+      trt_model_type = trt_model_type,
+      linear_trt_scale_factor = linear_trt_scale_factor)
   }
   
   return(design_mat_list)
@@ -51,17 +66,21 @@ CreateClusterCompleteDesignMatrixList <- function(
                                                mli_study_flag,
                                                crossover_time_period,
                                         n_ind_per_clust,
-                                        time_effects_type,
-                                        trt_effects_type,
+                                        time_model_type,
+                                        trt_model_type,
                                         linear_trt_scale_factor = 1) {
 
-  dim_time_params <- switch(time_effects_type,
+  checkmate::expect_int(crossover_time_period)
+
+  # Note: this includes the intercept
+  dim_time_params <- switch(time_model_type,
                             linear = 2,
                             categorical = n_study_periods,
                             quadratic = stop("Not implemented yet [will be 3]"),
   )
 
-  dim_trt_params <- switch(trt_effects_type,
+  # Assumes the intercept is included as part of the time parameters
+  dim_trt_params <- switch(trt_model_type,
                            average = 1,
                            linear = 1,
                            quadratic = stop("Not implemented yet [will be 2]")
@@ -69,28 +88,34 @@ CreateClusterCompleteDesignMatrixList <- function(
 
   if(mli_study_flag == TRUE) dim_trt_params <- 3*dim_trt_params
 
+  # Define the number of observations and parameters (design matrix row and column dimensions)
+  n_observations <- n_study_periods*n_ind_per_clust
   n_params <- dim_time_params + dim_trt_params
 
+  # Create the time and treatment matrices
   time_period_vec <- 1:n_study_periods
 
-  trt_time_vec <- c(rep(0, times = crossover_time_period - 1),
+  trt_time_vec <- c(rep(0, times = (crossover_time_period - 1)),
                     seq(from = 1, to = n_study_periods - crossover_time_period + 1, by = 1))
 
   trt_time_mat <- matrix(1, nrow = dim_trt_params, ncol = 1) %x% matrix(trt_time_vec, ncol = 1)
 
   # Matrix Dimension will depend on the type of time effects
-  transformed_time_mat <- switch(time_effects_type,
+  # There will be an intercept so the first period is not included in categorical
+  transformed_time_mat <- switch(time_model_type,
                                  linear = matrix(time_period_vec, ncol = 1),
                                  quadratic = matrix(c(time_period_vec, time_period_vec^2), ncol = 2),
-                                 period = diag(n_study_periods)
+                                 categorical = diag(n_study_periods)[,-1],
+                                 stop("time_model_type must be one of 'linear', 'quadratic', or 'categorical'")
   )
 
   # Matrix Dimension will depend on the type of study design
   # Note for quadratic that x^2 for a matrix in R does element-wise squaring
-  transformed_trt_mat <- switch(trt_effects_type,
+  transformed_trt_mat <- switch(trt_model_type,
                                 average = pmin(trt_time_mat, 1),
                                 linear = linear_trt_scale_factor * trt_time_mat,
-                                quadratic = cbind(trt_time_mat, trt_time_mat^2)
+                                quadratic = cbind(trt_time_mat, trt_time_mat^2),
+                                stop("trt_model_type must be one of 'average', 'linear', or 'quadratic'")
   )
 
   # Create the design matrix
@@ -102,9 +127,44 @@ CreateClusterCompleteDesignMatrixList <- function(
   cluster_design_mat <- matrix(1, nrow = n_ind_per_clust, ncol = 1) %x%
     single_ind_design_mat
 
-  stopifnot(all.equal(dim(cluster_design_mat), c(n_ind_per_clust, n_params + 1)))
+  expect_equal(nrow(cluster_design_mat), n_observations)
+  expect_equal(ncol(cluster_design_mat), n_params)
 
-  colnames(cluster_design_mat) <- c(.NameTimeEffects(time_effects_type), .NameTrtEffects(mli_study_flag))
+  colnames(cluster_design_mat) <- c(.NameTimeEffects(time_model_type, n_study_periods), .NameTrtEffects(mli_study_flag))
 
   return(cluster_design_mat)
+}
+
+###############################################################################
+## Design Matrix Input Checks
+##
+###############################################################################
+
+.CheckClusterCompleteDesignMatrixInputs <- function(
+  n_study_periods,
+  n_clust_trt_seqs,
+  n_clust_per_seq,
+  crossover_time_period_vec,
+  n_ind_per_clust,
+  time_model_type,
+  trt_model_type,
+  linear_trt_scale_factor = 1,
+  mli_study_flag = FALSE) {
+
+  checkmate::expect_int(n_study_periods)
+  checkmate::expect_int(n_clust_trt_seqs)
+  checkmate::expect_int(n_clust_per_seq)
+  checkmate::expect_int(n_ind_per_clust)
+
+  checkmate::expect_numeric(crossover_time_period_vec,
+                            any.missing = FALSE, null.ok = FALSE)
+
+  checkmate::expect_choice(time_model_type, choices = c("categorical", "linear"))
+  checkmate::expect_choice(trt_model_type, choices = c("average", "linear"))
+
+  checkmate::expect_numeric(linear_trt_scale_factor)
+
+  checkmate::expect_flag(mli_study_flag)
+
+  return(NULL)
 }

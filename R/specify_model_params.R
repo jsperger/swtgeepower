@@ -16,7 +16,7 @@
 #' @param time_intercept_param Numeric. The intercept parameter for the time model. Required if `time_model_type` is "linear".
 #' @param time_trend_param Numeric. The trend parameter for the time model. Required if `time_model_type` is "linear".
 #' @param period_effect_param_vec Numeric vector. The period effect parameters for the time model. Required if `time_model_type` is "categorical".
-#' @param treatment_model_type Character. The type of treatment effect model to be used. Valid values are "linear" and "average".
+#' @param trt_model_type Character. The type of treatment effect model to be used. Valid values are "linear" and "average".
 #' @param clust_trt_param Numeric. The treatment effect parameter at the cluster level.
 #' @param ind_trt_param Numeric. The treatment effect parameter at the individual level. Only required if `mli_study_flag` is TRUE.
 #' @param interaction_param Numeric. The interaction parameter for the treatment effect. Only required if `mli_study_flag` is TRUE.
@@ -31,7 +31,7 @@
 #'                            time_model_type = "linear",
 #'                            time_intercept_param = 0.5,
 #'                            time_trend_param = 0.1,
-#'                            treatment_model_type = "linear",
+#'                            trt_model_type = "linear",
 #'                            clust_trt_param = 0.3)
 #' }
 #'
@@ -42,7 +42,7 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
                                         time_intercept_param = NULL,
                                         time_trend_param = NULL,
                                         period_effect_param_vec = NULL,
-                                        treatment_model_type = "linear",
+                                        trt_model_type = "linear",
                                         clust_trt_param,
                                         ind_trt_param = NULL,
                                         interaction_param = NULL){
@@ -53,7 +53,7 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
                   time_intercept_param = time_intercept_param,
                   time_trend_param = time_trend_param,
                   period_effect_param_vec = period_effect_param_vec,
-                  treatment_model_type = treatment_model_type,
+                  trt_model_type = trt_model_type,
                   clust_trt_param = clust_trt_param,
                   ind_trt_param = ind_trt_param,
                   interaction_param = interaction_param)
@@ -65,7 +65,7 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
                            "categorical" = .SpecifyCategoricalTimeEffect(n_study_periods,
                                                                          period_effect_param_vec))
 
-  named_trt_params <- switch(treatment_model_type,
+  named_trt_params <- switch(trt_model_type,
                              "linear" = .SpecifyAvgOrLinearTrtEffect(mli_study_flag,
                                                                     clust_trt_param,
                                                                     ind_trt_param,
@@ -75,7 +75,7 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
                                                                      ind_trt_param,
                                                                      interaction_param))
   # Provide informative names for the parameters
-  names(named_time_params) <- .NameTimeEffects(time_model_type)
+  names(named_time_params) <- .NameTimeEffects(time_model_type, n_study_periods = n_study_periods)
   names(named_trt_params) <- .NameTrtEffects(mli_study_flag = mli_study_flag)
 
   dgm_param_vec <- c(named_time_params, named_trt_params, use.names = TRUE)
@@ -152,11 +152,11 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
   checkmate::expect_number(interaction_param, null.ok = (mli_study_flag == FALSE))
 
   trt_param_vec <- c(clust_trt_param, ind_trt_param, interaction_param)
-  trt_param_vec <- trt_param_vec[is.null(trt_param_vec) == FALSE)]
+  trt_param_vec <- trt_param_vec[is.null(trt_param_vec) == FALSE]
 
   return(trt_param_vec)
-  }
 }
+
 
 
 
@@ -180,7 +180,7 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
                             time_intercept_param,
                             time_trend_param,
                             period_effect_param_vec,
-                            treatment_model_type,
+                            trt_model_type,
                             clust_trt_param,
                             ind_trt_param,
                             interaction_param) {
@@ -202,7 +202,7 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
                             null.ok = (time_model_type != "categorical"))
 
   # Should be either 'linear' or 'average'
-  checkmate::expect_choice(treatment_model_type, choices = c("linear", "average"))
+  checkmate::expect_choice(trt_model_type, choices = c("linear", "average"))
 
   # Numeric
   checkmate::expect_number(clust_trt_param)
@@ -215,6 +215,8 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
 
   return(NULL)
 }
+
+
 #' @title Check Inputs for Data Generating Model Specification
 #'
 #' @description
