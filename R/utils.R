@@ -1,5 +1,12 @@
 #' Description: Utility functions for the project
 
+###############################################################################
+# Utility Functions - Defaults
+#
+###############################################################################
+
+# Default Names
+###############################################################################
 #' @title Names for the Time Effects Parameters
 #'
 #' @description Gets its own function because it's used in the model parameter
@@ -21,10 +28,32 @@
   return(trt_effect_names)
 }
 
+# Default Parameter Dimensions
+###############################################################################
 
+.DefaultDimTimeParams <- function(time_model_type, n_study_periods){
+  # Note: this includes the intercept
 
-.CheckFrechetBound <- function(){
-  stop("Not implemented yet")
+  dim_time_params <- switch(time_model_type,
+                            linear = 2,
+                            categorical = n_study_periods,
+                            quadratic = stop("Not implemented yet [will be 3]"),
+  )
+
+  return(dim_time_params)
+}
+
+.DefaultDimTrtParams <- function(mli_study_flag, trt_model_type){
+  # Assumes the intercept is included as part of the time parameters
+  dim_trt_params <- switch(trt_model_type,
+                           average = 1,
+                           linear = 1,
+                           quadratic = stop("Not implemented yet [will be 2]")
+  )
+
+  if(mli_study_flag == TRUE) dim_trt_params <- 3*dim_trt_params
+
+  return(dim_trt_params)
 }
 
 #' @title Create an integer vector whose entries are the unique calendar time
@@ -69,4 +98,40 @@
   stop("n_clust_trt_seqs must be equal to one of \n n_study_periods, \n n_clust_trt_seqs + 1, \n or a factor of n_study_periods - 1")
 
   return(NULL)
+}
+
+
+.CreateDefaultNullValVec <- function(mli_study_flag){
+  contrast_dim <- ifelse(mli_study_flag == TRUE, 3, 1)
+
+  return(rep(0, times = contrast_dim))
+}
+
+#' @title Create a default contrast matrix
+#'
+.CreateDefaultContrastMat <- function(n_time_model_params,
+                                      n_trt_model_params) {
+  contrast_row_dim <- n_trt_model_params
+
+  contrast_mat <- cbind( matrix(0, nrow = contrast_row_dim, ncol = n_time_model_params),
+                         diag(1, nrow = n_trt_model_params))
+
+  return(contrast_mat)
+}
+
+.CalculateDefaultTestDf <- function(n_clusters,
+                                 n_mean_model_params){
+  return(n_clusters - n_mean_model_params)
+}
+
+
+
+
+###############################################################################
+# Utility Functions - Common Checks
+#
+###############################################################################
+
+.CheckFrechetBound <- function(){
+  stop("Not implemented yet")
 }

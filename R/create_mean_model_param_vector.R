@@ -1,8 +1,8 @@
 
-##############################################################################################
+###############################################################################
 ## Data Generating Model Specification Function
 ##
-##############################################################################################
+###############################################################################
 
 #' @title Specify Data Generating Model
 #'
@@ -85,10 +85,10 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
   return(dgm_param_vec)
 }
 
-##############################################################################################
+###############################################################################
 ## Individual Effect-type Specification Functions
 ##
-##############################################################################################
+###############################################################################
 #' @title Specify Linear Time Effect Parameters
 #'
 #' @description
@@ -160,10 +160,10 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
 
 
 
-##############################################################################################
+###############################################################################
 ## Input Checks
 ##
-##############################################################################################
+###############################################################################
   #' @title Check Inputs for Data Generating Model Specification
   #'
   #' @description
@@ -197,9 +197,17 @@ SpecifyDataGeneratingModel <- function (n_study_periods = NULL,
   checkmate::expect_number(time_intercept_param, null.ok = (time_model_type != "linear"))
   checkmate::expect_number(time_trend_param, null.ok = (time_model_type != "linear"))
 
+  if(time_model_type == "categorical"){
+    if(is.null(time_trend_param) == FALSE) warning("`time_trend_param` is not NULL, but it is not used when time_model_type is 'categorical'")
+    if(is.null(time_intercept_param) == FALSE) warning("`time_intercept_param` is not NULL, but it not used when time_model_type is 'categorical'")
+  }
+
   # Numeric vector
   checkmate::expect_numeric(period_effect_param_vec, any.missing = FALSE,
                             null.ok = (time_model_type != "categorical"))
+
+  if(time_model_type == "linear" & is.null(period_effect_param_vec) == FALSE) warning(
+    "`period_effect_param_vec` is not NULL, but it is not used when time_model_type is 'linear'")
 
   # Should be either 'linear' or 'average'
   checkmate::expect_choice(trt_model_type, choices = c("linear", "average"))

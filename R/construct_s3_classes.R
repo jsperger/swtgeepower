@@ -1,5 +1,10 @@
 
 if(FALSE){
+
+  NewWorkingCorrelationMatrix <- function(){
+    new_instance <- structure(list(), class = "working_correlation_matrix")
+  }
+
   #' Constructor for the `swtdesign` class
   NewSwtdesign <- function(n_time_periods,
                            n_obs_periods_per_clust,

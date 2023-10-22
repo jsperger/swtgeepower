@@ -83,6 +83,8 @@
 
   n_clust <- length(design_mat_list)
 
+  n_mean_model_params <- nrow(dgm_param_col_vec)
+
   # Create placeholder lists
   mui_col_vec_list <- vector(mode = "list", length = n_clust)
   di_mean_jacobian_mat_list <- vector(mode = "list", length = n_clust)
@@ -98,27 +100,28 @@
       link = link
     )
 
-    clust_mean_jacobian_mat_list <- .CreateMeanJacobianMatDi(
+    clust_mean_jacobian_mat <- .CreateMeanJacobianMatDi(
       mu_col_vec = clust_mu_vec,
+      n_mean_model_params = n_mean_model_params,
       link = link
     )
 
-    clust_bi_var_matrix <- .CreateVarParamMatrixBi(
+    clust_bi_var_mat <- .CreateVarParamMatrixBi(
       mu_col_vec = clust_mu_vec,
       dispersion_scalar = dispersion_scalar,
       var_fun = var_fun
     )
 
-    clust_vi_var_matrix <- .CalcVarMatrixVi(
-      var_mat_bi = clust_bi_var_matrix,
+    clust_vi_var_mat <- .CalcVarMatrixVi(
+      var_mat_bi = clust_bi_var_mat,
       working_cor_mat_ri = working_cor_mat_list[[i]]
     )
 
     # Store the results in the placeholder lists
     mui_col_vec_list[[i]] <- clust_mu_vec
-    di_mean_jacobian_mat_list[[i]] <- clust_mean_jacobian_mat_list
-    bi_var_matrix_list[[i]] <- clust_bi_var_matrix
-    vi_var_matrix_list[[i]] <- clust_vi_var_matrix
+    di_mean_jacobian_mat_list[[i]] <- clust_mean_jacobian_mat
+    bi_var_matrix_list[[i]] <- clust_bi_var_mat
+    vi_var_matrix_list[[i]] <- clust_vi_var_mat
   }
 
   # Calculate the model-based variance matrix
@@ -128,13 +131,14 @@
     var_mat_vi_list = vi_var_matrix_list
   )
 
+
   # Calculate the estimated parameter vector
   estimated_param_vec <- .CalcEstimatedParamVec(
     design_mat_list = design_mat_list,
     mean_jacobian_mat_list = di_mean_jacobian_mat_list,
     var_mat_vi_list = vi_var_matrix_list,
     mui_vec_list = mui_col_vec_list,
-    invlink_fun = invlink_fun
+    link = link
   )
 
   # Calculate the noncentrality parameter for the Wald test
@@ -235,11 +239,12 @@
 #' Returns a numeric matrix, the mean Jacobian matrix \( D_i \).
 #'
 #' @keywords internal
-.CreateMeanJacobianMatDi <- function(mu_col_vec, link) {
+.CreateMeanJacobianMatDi <- function(mu_col_vec, n_mean_model_params, link) {
   mean_jacobian_mat_di <- switch(link,
-                                 identity = diag(1, nrow = mu_col_vec),
+                                 identity = diag(1, nrow(mu_col_vec)),
                                  logit = diag(mu_col_vec) %*% diag(1 - mu_col_vec),
-                                 log = diag(mu_col_vec)
+                                 log = diag(mu_col_vec),
+                                 stop("link must be one of 'identity', 'logit', or 'log'")
   )
 
   return(mean_jacobian_mat_di)
@@ -270,7 +275,7 @@
                                     dispersion_scalar,
                                     var_fun) {
   # concatenate matrix to vector
-  var_vec <- var_fun(c(mu_col_vec))
+  var_vec <- apply(mu_col_vec, 1, var_fun)
 
   var_mat <- diag(var_vec)
 
@@ -358,7 +363,7 @@
 #' @param mean_jacobian_mat_list A list of numeric matrices representing the mean Jacobian matrices \( D_i \) for each cluster.
 #' @param var_mat_vi_list A list of numeric matrices representing the covariance matrices \( V_i \) for each cluster.
 #' @param mui_vec_list A list of numeric vectors representing the expected responses \( \mu_i \) for each cluster.
-#' @param invlink_fun A function representing the inverse link function.
+#' @param link A
 #'
 #' @details
 #' The estimated parameter vector \( \hat{\theta} \) is calculated as:
@@ -376,8 +381,15 @@
                                    mean_jacobian_mat_list,
                                    var_mat_vi_list,
                                    mui_vec_list,
-                                   invlink_fun) {
+                                   link) {
   num_clusters <- length(design_mat_list)
+
+  invlink_fun <- switch(link,
+                        identity = function(x) x,
+                        logit = function(x) 1/(1 + exp(-x)),
+                        log = function(x) exp(x),
+                        stop("Invalid link function")
+  )
 
   # Calculate the shared term for each cluster
   shared_term_for_clusters <- lapply(
@@ -440,9 +452,9 @@
   model_based_var_inv <- solve(model_based_var_mat)
 
   noncentrality_param <- n_clust *
-    t(contrast_mat %*% estimated_param_vec - null_val_vec) %*%
+    t((contrast_mat %*% estimated_param_vec) - null_val_vec) %*%
       model_based_var_inv %*%
-      (contrast_mat %*% estimated_param_vec - null_val_vec)
+      ((contrast_mat %*% estimated_param_vec) - null_val_vec)
 
   return(noncentrality_param)
 }
@@ -506,17 +518,17 @@
   )
 
   # Check if lists are of the same length
-  checkmate::expect_equal(length(design_mat_list), length(working_cor_mat_list))
+  testthat::expect_equal(length(design_mat_list), length(working_cor_mat_list))
 
   if (!is.null(incidence_mat_list)) {
-    checkmate::expect_equal(length(design_mat_list), length(incidence_mat_list))
+    testthat::expect_equal(length(design_mat_list), length(incidence_mat_list))
   }
 
 
   checkmate::expect_numeric(dgm_param_col_vec, any.missing = FALSE)
   checkmate::expect_number(dispersion_scalar, lower = 0)
   checkmate::expect_function(var_fun)
-  checkmate::expect_function(link)
+  checkmate::expect_choice(link, c("identity", "logit", "log"))
   checkmate::expect_choice(response_type, choices = c("continuous", "count", "binary")) # Replace with actual choices
   checkmate::expect_number(alpha, lower = 0, upper = 1)
   checkmate::expect_number(test_df, lower = 1)

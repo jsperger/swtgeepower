@@ -90,20 +90,12 @@ CreateClusterCompleteDesignMatrixList <- function(
   checkmate::expect_int(crossover_time_period)
 
   # Note: this includes the intercept
-  dim_time_params <- switch(time_model_type,
-                            linear = 2,
-                            categorical = n_study_periods,
-                            quadratic = stop("Not implemented yet [will be 3]"),
-  )
+  dim_time_params <- .DefaultDimTimeParams(time_model_type = time_model_type,
+                                           n_study_periods = n_study_periods)
 
   # Assumes the intercept is included as part of the time parameters
-  dim_trt_params <- switch(trt_model_type,
-                           average = 1,
-                           linear = 1,
-                           quadratic = stop("Not implemented yet [will be 2]")
-  )
-
-  if(mli_study_flag == TRUE) dim_trt_params <- 3*dim_trt_params
+  dim_trt_params <- .DefaultDimTrtParams(mli_study_flag = mli_study_flag,
+                                         trt_model_type = trt_model_type)
 
   # Define the number of observations and parameters (design matrix row and column dimensions)
   n_observations <- n_study_periods*n_ind_per_clust
@@ -210,7 +202,7 @@ CreateClusterCompleteDesignMatrixList <- function(
 .CheckClusterCompleteDesignMatrixOutput <- function(design_mat_list){
   columns_per_matrix <- sapply(design_mat_list, ncol, simplify = TRUE, USE.NAMES = FALSE)
 
-  expect_equal(unique(columns_per_matrix), 1)
+  expect_equal(length(unique(columns_per_matrix)), 1)
 
   return(NULL)
 }

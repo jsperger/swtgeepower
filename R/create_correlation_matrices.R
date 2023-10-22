@@ -15,61 +15,81 @@
 ## Correlation Matrix Wrapper Functions
 ##
 ###############################################################################
-CreateClusterCompleteDesignMatrixList <- function(
+
+CreateCompleteWorkingCorMatList <- function(
   n_study_periods,
-  n_clust_trt_seqs,
-  n_clust_per_seq,
-  crossover_time_period_vec,
+  n_clusters,
   n_ind_per_clust,
-  time_model_type,
-  trt_model_type,
-  linear_trt_scale_factor = 1,
-  mli_study_flag = FALSE){
+  sample_type,
+  within_period_cor,
+  between_period_cor = NULL,
+  within_subject_cor = NULL,
+  cor_decay_rate = NULL
+  ) {
+  
+  working_cor_mat_prototype <- CreateWorkingCorMat(
+    n_subj_per_period = n_ind_per_clust,
+    n_obs_periods = n_study_periods,
+    sample_type = sample_type,
+    within_period_cor = within_period_cor,
+    between_period_cor = between_period_cor,
+    within_subject_cor = within_subject_cor,
+    cor_decay_rate = cor_decay_rate
+  )
+
+  working_cor_mat_list <- rep(list(working_cor_mat_prototype), times = n_clusters)
+
+  return(working_cor_mat_list)
 
 }
 
 
-#' @title Specify and Create a Correlation Matrix
+#' @title Create a Working Correlation Matrix for a Single Cluster
 #'
 #' @description
-#' r lifecycle::badge("experimental")`
+#' This function generates a working correlation matrix based on different correlation structures,
+#' such as exponential decay, nested exchangeable, proportional decay, and block exchangeable.
+#' The function is intended for use as a utility function to specify correlation structures
+#' for GEE-based power calculations or sample size calculations in stepped-wedge trials.
 #'
-#' This function generates a specification for a correlation matrix based on
-#' a variety of correlation structures, such as exchangeable, exponential decay,
-#' and block exchangeable. The function is intended to be used as a utility
-#' function to specify the correlation structure for GEE-based power calculation
-#' or sample size calculation in stepped wedge trials. The type of correlation
-#' structure that is created depends on which arguments are provided.
+#' @param n_subj_per_period Integer. The number of subjects per observed period in a cluster.
+#' @param n_obs_periods Integer. The number of observed time periods.
+#' @param sample_type Character. Specifies the type of sample design: "cohort" or "cross-sectional".
+#' @param within_period_cor Numeric. Correlation between observations on different subjects in the same cluster and time period.
+#' @param between_period_cor Numeric. Correlation between observations on different subjects in the same cluster but different time periods. Optional.
+#' @param within_subject_cor Numeric. Correlation between observations on the same subject at different time periods. Optional.
+#' @param cor_decay_rate Numeric. The rate at which correlation decays over time. Optional.
 #'
-#' @param n_individuals Integer. The number of individuals within each cluster.
-#' @param n_time_periods Integer. The number of time periods for the study.
-#' @param design_type String. Specifies whether the design is cross-sectional or cohort. Valid values are "cross" and "cohort".
+#' @return A square matrix of dimension \((n\_subj\_per\_period \times n\_obs\_periods)\) specifying the working correlation structure between observations in the same cluster over time.
 #'
-#' @return An (n_individuals*n_time_periods)-dimensional matrix specifying the correlation structure between observations
-#' in the same cluster over time.
+#' @seealso
+#' Other utility functions for correlation structures. (List other functions if available)
+#'
+#' @examples
+#' \dontrun{
+#' CreateWorkingCorMat(n_subj_per_period = 10,
+#'                     n_obs_periods = 5,
+#'                     sample_type = "cross-sectional",
+#'                     within_period_cor = 0.5)
+#' }
 #'
 #' @export
-#'
-SpecifyWorkingCorMat<- function(
-  n_subj_per_period, # Number of individuals in a cluster
-  n_obs_periods, # Number of observed time periods
-  design_type, # Type of design
-  within_period_cor, # Correlation between observations on different subjects in
-  # the same cluster in the same time period
-  cor_decay_rate = NULL, # Correlation decary rate over time
-  # cor_decay_rate^|time difference|
-  between_period_cor = NULL, # Correlation between observations on different
-  # subjects in the same cluster in different time periods
-  within_subject_cor = NULL # Correlation between observations on the same
-  # subject in different time periods
+CreateWorkingCorMat<- function(
+  n_subj_per_period,
+  n_obs_periods,
+  sample_type,
+  within_period_cor,
+  between_period_cor = NULL,
+  within_subject_cor = NULL,
+  cor_decay_rate = NULL
 ) {
-  design_type_sanitized <- tolower(design_type) %>% stringr::str_trim(.)
+  sample_type_sanitized <- tolower(sample_type) %>% stringr::str_trim(.)
 
   # Check inputs
   .CheckCorMatInputs(
     n_obs_periods = n_obs_periods,
     n_subj_per_period = n_subj_per_period,
-    design_type_sanitized = design_type_sanitized,
+    sample_type_sanitized = sample_type_sanitized,
     within_period_cor = within_period_cor,
     between_period_cor = between_period_cor,
     within_subject_cor = within_subject_cor,
@@ -79,13 +99,13 @@ SpecifyWorkingCorMat<- function(
   # Not logically exhaustive, but all other cases are errors that should be
   # caught by input checks
   cor_structure <- dplyr::case_when(
-    design_type_sanitized == "cross" & !is.null(cor_decay_rate) ~
+    sample_type_sanitized == "cross" & !is.null(cor_decay_rate) ~
       "exponential_decay",
-    design_type_sanitized == "cross" & !is.null(between_period_cor) &
+    sample_type_sanitized == "cross" & !is.null(between_period_cor) &
       is.null(within_subject_cor) ~ "nested_exchangeable",
-    design_type_sanitized == "cohort" &
+    sample_type_sanitized == "cohort" &
       !is.null(cor_decay_rate) ~ "proportional_decay",
-    design_type_sanitized == "cohort" &
+    sample_type_sanitized == "cohort" &
       !any(is.null(between_period_cor), is.null(within_subject_cor)) ~
       "block_exchangeable",
     TRUE ~ NA_character_
@@ -372,7 +392,7 @@ SpecifyWorkingCorMat<- function(
 #'
 #' @param n_obs_periods Number of observation periods (positive integer).
 #' @param n_subj_per_period Number of subjects per observation period (positive integer).
-#' @param design_type_sanitized A string specifying the type of study design, cohort or cross-sectional (character).
+#' @param sample_type_sanitized A string specifying the type of study design, cohort or cross-sectional (character).
 #' @param within_period_cor Correlation between observations on different subjects in the same cluster in the same time period. Required for all correlation structures (numeric between 0 and 1 exclusive).
 #' @param between_period_cor Correlation between observations on different subjects in the same cluster in different time periods. Required for "block_exchangeable" and "nested_exchangeable" structures (numeric between 0 and 1 exclusive).
 #' @param within_subject_cor Correlation between observations on the same subject in different time periods. Required for "block_exchangeable" structure (numeric between 0 and 1 exclusive).
@@ -386,7 +406,7 @@ SpecifyWorkingCorMat<- function(
 #'
 .CheckCorMatInputs <- function(n_obs_periods,
                                n_subj_per_period,
-                               design_type_sanitized,
+                               sample_type_sanitized,
                                within_period_cor = NULL,
                                between_period_cor = NULL,
                                within_subject_cor = NULL,
@@ -394,7 +414,7 @@ SpecifyWorkingCorMat<- function(
   .CheckCorMatInputTypes(
     n_obs_periods = n_obs_periods,
     n_subj_per_period = n_subj_per_period,
-    design_type = design_type_sanitized,
+    sample_type = sample_type_sanitized,
     within_period_cor = within_period_cor,
     between_period_cor = between_period_cor,
     within_subject_cor = within_subject_cor,
@@ -411,7 +431,7 @@ SpecifyWorkingCorMat<- function(
   )
 
   .CheckCorMatInputsLogic(
-    design_type_sanitized = design_type_sanitized,
+    sample_type_sanitized = sample_type_sanitized,
     between_period_cor = between_period_cor,
     cor_decay_rate = cor_decay_rate
   )
@@ -423,7 +443,7 @@ SpecifyWorkingCorMat<- function(
 #' @noRd
 #' @description Internal helper function to check the logical consistency of correlation matrix inputs.
 #'
-#' @param design_type_sanitized A string specifying the type of study design, cohort or cross-sectional (character).
+#' @param sample_type_sanitized A string specifying the type of study design, cohort or cross-sectional (character).
 #' @param between_period_cor Correlation between observations on different subjects in the same cluster in different time periods. Required for "block_exchangeable" and "nested_exchangeable" structures (numeric between 0 and 1 exclusive).
 #' @param cor_decay_rate The rate of correlation decay. Required for proportional and exponential decay structures; its exact meaning depends on the correlation structure (numeric between 0 and 1 exclusive).
 #'
@@ -432,13 +452,13 @@ SpecifyWorkingCorMat<- function(
 #' @examples
 #'
 #' # Example usage:
-#' .CheckCorMatInputsLogic(design_type_sanitized = "cohort", between_period_cor = 0.3, cor_decay_rate = 0.8)
+#' .CheckCorMatInputsLogic(sample_type_sanitized = "cohort", between_period_cor = 0.3, cor_decay_rate = 0.8)
 #'
-.CheckCorMatInputsLogic <- function(design_type_sanitized,
+.CheckCorMatInputsLogic <- function(sample_type_sanitized,
                                     between_period_cor = NULL,
                                     cor_decay_rate = NULL) {
-  if ((design_type_sanitized %in% c("cross", "cohort")) == FALSE) {
-    stop("ERROR: design_type must be either 'cross' or 'cohort'")
+  if ((sample_type_sanitized %in% c("cross", "cohort")) == FALSE) {
+    stop("ERROR: sample_type must be either 'cross' or 'cohort'")
   }
 
   # Check that the inputs only contain parameters for one correlation structure
@@ -453,15 +473,15 @@ SpecifyWorkingCorMat<- function(
 
   # Check that the necessary parameters for each correlation structure type are provided
   if (is.null(cor_decay_rate)) {
-    if (design_type_sanitized == "cross" && any(is.null(c(within_period_cor, between_period_cor)))) {
+    if (sample_type_sanitized == "cross" && any(is.null(c(within_period_cor, between_period_cor)))) {
       stop("ERROR: For the nested exchangeable structure, you must provide within_period_cor and between_period_cor")
     }
 
-    if (design_type_sanitized == "cross" && !is.null(within_subject_cor)) {
+    if (sample_type_sanitized == "cross" && !is.null(within_subject_cor)) {
       stop("ERROR: within_subject_cor must not be speficied in cross-sectional designs")
     }
 
-    if (design_type_sanitized == "cohort" && any(is.null(c(within_period_cor, between_period_cor, within_subject_cor)))) {
+    if (sample_type_sanitized == "cohort" && any(is.null(c(within_period_cor, between_period_cor, within_subject_cor)))) {
       stop("ERROR: For the block exchangeable structure, you must provide within_period_cor, between_period_cor, and within_subject_cor")
     }
   }
@@ -503,13 +523,13 @@ SpecifyWorkingCorMat<- function(
 
 .CheckCorMatInputTypes <- function(n_obs_periods,
                                    n_subj_per_period,
-                                   design_type,
+                                   sample_type,
                                    within_period_cor,
                                    between_period_cor = NULL,
                                    within_subject_cor = NULL,
                                    cor_decay_rate = NULL) {
-  if (is.character(design_type) == FALSE) {
-    stop("ERROR: design_type must be a character string")
+  if (is.character(sample_type) == FALSE) {
+    stop("ERROR: sample_type must be a character string")
   }
 
   # Check that the required inputs are numeric
@@ -528,7 +548,7 @@ SpecifyWorkingCorMat<- function(
     stop("ERROR: cor_decay_rate must be numeric")
   }
 
-  input_list <- list(n_obs_periods, n_subj_per_period, design_type, within_period_cor, between_period_cor, within_subject_cor, cor_decay_rate)
+  input_list <- list(n_obs_periods, n_subj_per_period, sample_type, within_period_cor, between_period_cor, within_subject_cor, cor_decay_rate)
   if (any(lapply(input_list, FUN = length) > 1)) {
     include_in_error_msg <- lapply(input_list, FUN = length) > 1
 
