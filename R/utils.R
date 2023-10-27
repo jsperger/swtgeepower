@@ -1,5 +1,35 @@
 #' Description: Utility functions for the project
 
+# Family wrangling
+###############################################################################
+#' @title Input processing for family objects
+#' @description
+#' For ensuring that the input `family` is a family object (list)
+#' Handles inputs in the form of a string, function, or list
+#'
+#' @param family Ideally a family object (list), but if it's a string or function
+#' `.WrangleFamily` will attempt to convert it to a family object.
+.WrangleFamily <- function (family){
+
+  # String input
+  if(is.character(family) == TRUE){
+    if(family %in% c("quasi", "quasibinomial", "quasipoisson")){
+      stop("quasi families are not supported. If you are only looking for overdispersion,
+       the package supports a separate overdispersion parameter")
+    }
+    checkmate::expect_choice(family, c("gaussian", "binomial", "poisson", "Gamma", "inverse.gaussian"))
+
+    family <- stats::family(family)
+  }
+  # Function input
+  if(is.function(family) == TRUE){
+        family <- family()
+    }
+
+  stopifnot(is(family) == "family")
+  # General error checking
+  return(family)
+}
 ###############################################################################
 # Utility Functions - Defaults
 #
