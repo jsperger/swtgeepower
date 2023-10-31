@@ -439,6 +439,44 @@ CreateWorkingCorMat<- function(
   return(NULL)
 }
 
+if(FALSE){
+  #' Create Inverted Block Exchangeable Correlation Matrix
+  #'
+  #' Uses an explicit form for the inverse of a block exchangeable correlation matrix to calculate the inverse of a block
+  #' exchangeable correlation matrix without directly inverting the matrix.
+  #'
+  #' @param n_obs_periods Number of observation periods
+  #' @param n_subj_per_period Number of subjects per observation period
+  #' @param within_period_corr Correlation between observations on different subjects
+  #' in the same cluster in the same time period
+  #' @param between_period_corr Correlation between observations on different subjects
+  #' in the same cluster in different time periods
+  #' @param within_subject_correlation Correlation between observations on the same subject
+  #' in different time periods
+  #'
+  #' @return The inverse of a block exchangeable correlation matrix with row- (and column-) dimension n_obs_periods*n_subj_per_period
+  CreateInvertedBlockExchangeableCorMat <- function (n_obs_periods,
+                                                     n_subj_per_period,
+                                                     within_period_corr,
+                                                     between_period_corr,
+                                                     within_subject_correlation){
+
+    eigenval1 <- 1 - within_period_corr - between_period_corr - within_subject_correlation
+
+    eigenval2 <- 1 - within_period_corr - (n_obs_periods - 1) * (within_subject_correlation + between_period_corr)
+
+    eigenval3 <- 1 - within_subject_correlation + (n_subj_per_period - 1) * (within_period_corr - between_period_corr)
+
+    eigenval4 <- 1 + (n_subj_per_period - 1) * within_period_corr +
+      (n_obs_periods - 1) * (n_subj_per_period - 1) * between_period_corr +
+      (n_obs_periods - 1) * within_subject_correlation
+
+    #
+
+    return(inverted_block_exchangeable_cor_mat)
+  }
+}
+
 #' @title Check logic of correlation matrix inputs
 #' @noRd
 #' @description Internal helper function to check the logical consistency of correlation matrix inputs.
@@ -497,13 +535,13 @@ CreateWorkingCorMat<- function(
                                           within_subject_cor = NULL,
                                           cor_decay_rate = NULL) {
   # Check that correlations are between 0 and 1
-  if (!is.null(within_period_cor) && (within_period_cor <= 0 || within_period_cor >= 1)) {
+  if (!is.null(within_period_cor) && (within_period_cor < 0 || within_period_cor >= 1)) {
     stop("ERROR: within_period_cor must be between 0 and 1 exclusive")
   }
-  if (!is.null(between_period_cor) && (between_period_cor <= 0 || between_period_cor >= 1)) {
+  if (!is.null(between_period_cor) && (between_period_cor < 0 || between_period_cor >= 1)) {
     stop("ERROR: between_period_cor must be between 0 and 1 exclusive")
   }
-  if (!is.null(within_subject_cor) && (within_subject_cor <= 0 || within_subject_cor >= 1)) {
+  if (!is.null(within_subject_cor) && (within_subject_cor < 0 || within_subject_cor >= 1)) {
     stop("ERROR: within_subject_cor must be between 0 and 1 exclusive")
   }
   if (!is.null(cor_decay_rate) && (cor_decay_rate <= 0 || cor_decay_rate >= 1)) {

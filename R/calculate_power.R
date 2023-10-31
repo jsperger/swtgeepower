@@ -21,9 +21,7 @@
 #' @param incidence_mat_list A list of incidence matrices, one for each cluster.
 #' @param dgm_param_col_vec A column vector of all data generating model parameters.
 #' @param dispersion_scalar The dispersion parameter for the GEE model.
-#' @param var_fun A function defining the variance as a function of the mean.
-#' @param link The link function for the GEE model.
-#' @param response_type Type of the response variable (e.g., continuous, count, binary).
+#' @param family A family object (from base R `stats` class)
 #' @param alpha The desired Type I error rate.
 #' @param test_df The degrees of freedom for the test statistic.
 #' @param contrast_mat A matrix specifying the contrasts for hypothesis testing.
@@ -52,29 +50,27 @@
 #' }
 #'
 #' @keywords internal
-
 .CalcPower <- function(design_mat_list,
                        working_cor_mat_list,
                        incidence_mat_list = NULL,
                        dgm_param_col_vec,
                        dispersion_scalar,
-                       var_fun,
-                       link,
-                       response_type,
+                       family,
                        alpha,
                        test_df,
                        contrast_mat,
                        null_val_vec,
                        power_only_flag = FALSE) {
 
+  # Ensure family is an object of class `family`
+  family <- .WrangleFamily(family)
+
   .CheckCalcPowerInputs(design_mat_list = design_mat_list,
                         working_cor_mat_list = working_cor_mat_list,
                         incidence_mat_list = incidence_mat_list,
                         dgm_param_col_vec = dgm_param_col_vec,
                         dispersion_scalar = dispersion_scalar,
-                        var_fun = var_fun,
-                        link = link,
-                        response_type = response_type,
+                        family = family,
                         alpha = alpha,
                         test_df = test_df,
                         contrast_mat = contrast_mat,
@@ -83,9 +79,8 @@
 
   n_clust <- length(design_mat_list)
 
-  n_mean_model_params <- nrow(dgm_param_col_vec)
-
   # Create placeholder lists
+  linear_pred_vec_list <- vector(mode = "list", length = n_clust)
   mui_col_vec_list <- vector(mode = "list", length = n_clust)
   di_mean_jacobian_mat_list <- vector(mode = "list", length = n_clust)
   bi_var_matrix_list <- vector(mode = "list", length = n_clust)
@@ -93,31 +88,35 @@
 
   # Calculate estimating equation components for each cluster
   for (i in 1:n_clust) {
-    clust_mu_vec <- .CreateMuiVector(
+    clust_lin_pred_vec <- .CreateLinearPredictors(
       design_mat = design_mat_list[[i]],
-      dgm_param_col_vec = dgm_param_col_vec,
-      response_type = response_type,
-      link = link
+      dgm_param_col_vec = dgm_param_col_vec
+    )
+    
+    clust_mu_vec <- .CreateMuiVector(
+      linear_pred_vec <- clust_lin_pred_vec,
+      family = family
     )
 
-    clust_mean_jacobian_mat <- .CreateMeanJacobianMatDi(
-      mu_col_vec = clust_mu_vec,
-      n_mean_model_params = n_mean_model_params,
-      link = link
+    clust_mean_jacobian_mat <- .CreateMeanJacobianMat(
+      linear_pred_vec = clust_lin_pred_vec, 
+      design_mat = design_mat_list[[i]],
+      family = family
     )
 
-    clust_bi_var_mat <- .CreateVarParamMatrixBi(
+    clust_bi_var_mat <- .CreateVarParamMatrix(
       mu_col_vec = clust_mu_vec,
-      dispersion_scalar = dispersion_scalar,
-      var_fun = var_fun
+      family = family
     )
 
     clust_vi_var_mat <- .CalcVarMatrixVi(
       var_mat_bi = clust_bi_var_mat,
-      working_cor_mat_ri = working_cor_mat_list[[i]]
+      working_cor_mat_ri = working_cor_mat_list[[i]],
+      dispersion_scalar = dispersion_scalar
     )
 
     # Store the results in the placeholder lists
+    linear_pred_vec_list[[i]] <- clust_lin_pred_vec
     mui_col_vec_list[[i]] <- clust_mu_vec
     di_mean_jacobian_mat_list[[i]] <- clust_mean_jacobian_mat
     bi_var_matrix_list[[i]] <- clust_bi_var_mat
@@ -127,6 +126,7 @@
   # Calculate the model-based variance matrix
 
   model_based_var_mat <- .CalcModelBasedVariance(
+    n_clust = n_clust,
     mean_jacobian_mat_list = di_mean_jacobian_mat_list,
     var_mat_vi_list = vi_var_matrix_list
   )
@@ -137,8 +137,7 @@
     design_mat_list = design_mat_list,
     mean_jacobian_mat_list = di_mean_jacobian_mat_list,
     var_mat_vi_list = vi_var_matrix_list,
-    mui_vec_list = mui_col_vec_list,
-    link = link
+    mui_vec_list = mui_col_vec_list
   )
 
   # Calculate the noncentrality parameter for the Wald test
@@ -167,25 +166,39 @@
 
   power_calc_results <- list(
     power = power,
+    linear_predictors = linear_pred_vec_list,
+    design_mats = design_mat_list,
+    mui_col_vec_list = mui_col_vec_list,
+    bi_var_matrix_list = bi_var_matrix_list,
+    di_mean_jacobian_mat_list = di_mean_jacobian_mat_list,
+    vi_var_matrix_list = vi_var_matrix_list,
+    estimated_param_vec = estimated_param_vec,
+    model_based_var_mat = model_based_var_mat,
     cluster_sample_size = n_clust,
-    test_stat = noncentrality_param,
+    noncentrality_param = noncentrality_param,
     alpha = alpha,
+    null_crit_val = null_crit_val,
     test_df = test_df
   )
 
   return(power_calc_results)
 }
 
+#' Create the Vector of linear predictors
+#'
+.CreateLinearPredictors <- function(design_mat, dgm_param_col_vec){
+  return(design_mat %*% dgm_param_col_vec)
+}
+
 #' Create the Expected Response Vector (\( \mu \))
 #'
 #' @description
 #' This internal function calculates the expected response vector \( \mu \) based on the design matrix,
-#' treatment parameters, response type, and link function.
+#' treatment parameters, response type, and (inverse) link function.
 #'
-#' @param design_mat A numeric matrix representing the design of the experiment for a particular cluster.
+#' @param linear_pred_vec 
 #' @param dgm_param_col_vec A numeric vector containing the treatment parameters.
-#' @param response_type A string indicating the type of the response variable (e.g., 'count', 'binary').
-#' @param link A string specifying the link function to use (e.g., 'identity', 'logit', 'log').
+#' @param family A family object (from base R `stats` class)
 #'
 #' @details
 #' The expected response \( \mu \) is calculated as:
@@ -198,24 +211,11 @@
 #' Returns a numeric column vector \( \mu \) containing the expected responses.
 #'
 #' @keywords internal
-.CreateMuiVector <- function(design_mat,
-                             dgm_param_col_vec,
-                             response_type,
-                             link) {
-  # Expected response on the scale of the link function
-  linear_pred_vec <- design_mat %*% dgm_param_col_vec
+.CreateMuiVector <- function(linear_pred_vec,
+                             family) {
+  stopifnot(family$valideta(linear_pred_vec) == TRUE) # valid.eta checks vector and returns single boolean
 
-  mu_vec <- switch(link,
-                   identity = linear_pred_vec,
-                   logit = exp(linear_pred_vec) / (1 + exp(linear_pred_vec)),
-                   log = exp(linear_pred_vec)
-  )
-
-  if (response_type == "count" & min(mu_vec) <= 0) {
-    stop("The mean of the response variable must be positive")
-  }
-
-  mu_col_vec <- matrix(data = mu_vec, ncol = 1)
+  mu_col_vec <- family$linkinv(linear_pred_vec)
 
   return(mu_col_vec)
 }
@@ -224,10 +224,10 @@
 #'
 #' @description
 #' This internal function calculates the mean Jacobian matrix \( D_i \), which is the derivative of the expected response \( \mu \)
-#' with respect to the treatment parameters \( \beta \), based on the link function.
+#' with respect to the mean parameters \( \beta \), based on the link function.
 #'
 #' @param mu_col_vec A numeric column vector containing the expected responses \( \mu \).
-#' @param link A string specifying the link function to use (e.g., 'identity', 'logit', 'log').
+#' @param family A family object (from base R `stats` class).
 #'
 #' @details
 #' The mean Jacobian matrix \( D_i \) is calculated based on the link function as follows:
@@ -235,19 +235,24 @@
 #' D_i = \frac{\partial \mu}{\partial \beta^T}
 #' \]
 #'
+#' Uses the \code{mu.eta} function from the family object for the calculation
 #' @return
 #' Returns a numeric matrix, the mean Jacobian matrix \( D_i \).
 #'
 #' @keywords internal
-.CreateMeanJacobianMatDi <- function(mu_col_vec, n_mean_model_params, link) {
-  mean_jacobian_mat_di <- switch(link,
-                                 identity = diag(1, nrow(mu_col_vec)),
-                                 logit = diag(mu_col_vec) %*% diag(1 - mu_col_vec),
-                                 log = diag(mu_col_vec),
-                                 stop("link must be one of 'identity', 'logit', or 'log'")
-  )
+.CreateMeanJacobianMat <- function(linear_pred_vec, design_mat, family) {
 
-  return(mean_jacobian_mat_di)
+  # Weird bug where valideta permits integers but the underlying C function throws an error
+  # TODO: bug report to R-devel
+  if(family$family == "binomial") linear_pred_vec <- as.numeric(linear_pred_vec)
+
+  stopifnot(family$valideta(linear_pred_vec) == TRUE)
+
+  # Don't want matrix calculations want to scale row i of design_mat
+  # ith entry of mu.eta(lin_pred)
+  mean_jacobian_mat <- c(family$mu.eta(linear_pred_vec)) * design_mat
+
+  return(mean_jacobian_mat)
 }
 
 #' Create the Variance Parameter Matrix (\( B_i \))
@@ -258,7 +263,7 @@
 #'
 #' @param mu_col_vec A numeric column vector containing the expected responses \( \mu \).
 #' @param dispersion_scalar A numeric scalar representing the dispersion parameter \( \phi \).
-#' @param var_fun A function defining the variance as a function of the mean.
+#' @param family A family object (from base R `stats` class).
 #'
 #' @details
 #' The variance parameter matrix \( B_i \) is calculated as:
@@ -267,21 +272,25 @@
 #' \]
 #' where \( \phi \) is the dispersion parameter and \( v(\mu_{ijk}) \) is the variance.
 #'
+#' Uses the built in \code{variance} function from the family object for the calculation
+#'
 #' @return
 #' Returns a numeric matrix \( B_i \), the variance parameter matrix.
 #'
 #' @keywords internal
-.CreateVarParamMatrixBi <- function(mu_col_vec,
-                                    dispersion_scalar,
-                                    var_fun) {
+.CreateVarParamMatrix <- function(mu_col_vec,
+                                  dispersion_scalar,
+                                  family) {
+
+  stopifnot(family$validmu(mu_col_vec) == TRUE)
+
   # concatenate matrix to vector
-  var_vec <- apply(mu_col_vec, 1, var_fun)
+  var_vec <- as.vector(mu_col_vec, mode = "numeric")
 
-  var_mat <- diag(var_vec)
+  # variance as a function of the mean
+  mean_var_mat <- diag(family$variance(var_vec))
 
-  var_mat_bi <- dispersion_scalar * var_mat
-
-  return(var_mat_bi)
+  return(mean_var_mat)
 }
 
 #' Calculate the Covariance Matrix (\( V_i \))
@@ -296,7 +305,7 @@
 #' @details
 #' The covariance matrix \( V_i \) is calculated as:
 #' \[
-#' V_i = B_i^{1/2} R_i B_i^{1/2}
+#' V_i = $\phi$ B_i^{1/2} R_i B_i^{1/2}
 #' \]
 #'
 #' @return
@@ -304,10 +313,12 @@
 #'
 #' @keywords internal
 .CalcVarMatrixVi <- function(var_mat_bi,
-                             working_cor_mat_ri) {
+                             working_cor_mat_ri,
+                             dispersion_scalar) {
+  # element-wise square root
   root_bi <- sqrt(var_mat_bi)
 
-  var_mat_vi <- root_bi %*% working_cor_mat_ri %*% root_bi
+  var_mat_vi <- dispersion_scalar*root_bi %*% working_cor_mat_ri %*% root_bi
 
   return(var_mat_vi)
 }
@@ -332,21 +343,24 @@
 #'
 #' @keywords internal
 
-.CalcModelBasedVariance <- function(mean_jacobian_mat_list,
+.CalcModelBasedVariance <- function(n_clust,
+                                    mean_jacobian_mat_list,
                                     var_mat_vi_list) {
 
   param_dim <- ncol(mean_jacobian_mat_list[[1]])
 
   vinv_list <- lapply(var_mat_vi_list, solve)
 
-  model_based_var_mat <- matrix(0, nrow = param_dim, ncol = param_dim)
+  model_based_inv <- matrix(0, nrow = param_dim, ncol = param_dim)
 
-  for (i in 1:length(mean_jacobian_mat_list)) {
-    model_based_var_mat <- model_based_var_mat +
+  for (i in 1:n_clust) {
+    model_based_inv <- model_based_inv +
       t(mean_jacobian_mat_list[[i]]) %*%
         vinv_list[[i]] %*%
         mean_jacobian_mat_list[[i]]
   }
+  
+  model_based_var_mat <- solve(model_based_inv)
 
   return(model_based_var_mat)
 }
@@ -363,7 +377,6 @@
 #' @param mean_jacobian_mat_list A list of numeric matrices representing the mean Jacobian matrices \( D_i \) for each cluster.
 #' @param var_mat_vi_list A list of numeric matrices representing the covariance matrices \( V_i \) for each cluster.
 #' @param mui_vec_list A list of numeric vectors representing the expected responses \( \mu_i \) for each cluster.
-#' @param link A
 #'
 #' @details
 #' The estimated parameter vector \( \hat{\theta} \) is calculated as:
@@ -380,25 +393,16 @@
 .CalcEstimatedParamVec <- function(design_mat_list,
                                    mean_jacobian_mat_list,
                                    var_mat_vi_list,
-                                   mui_vec_list,
-                                   link) {
+                                   mui_vec_list) {
   num_clusters <- length(design_mat_list)
 
-  invlink_fun <- switch(link,
-                        identity = function(x) x,
-                        logit = function(x) 1/(1 + exp(-x)),
-                        log = function(x) exp(x),
-                        stop("Invalid link function")
-  )
-
   # Calculate the shared term for each cluster
+  # (X_i^T V_i^{-1})
   shared_term_for_clusters <- lapply(
     1:num_clusters,
     function(i) {
-      t(design_mat_list[[i]]) %*%
-        mean_jacobian_mat_list[[i]] %*%
-        var_mat_vi_list[[i]] %*%
-        t(mean_jacobian_mat_list[[i]])
+        t(mean_jacobian_mat_list[[i]]) %*%
+        var_mat_vi_list[[i]]
     }
   )
 
@@ -408,8 +412,8 @@
 
   # Calculate the left and right parts for each cluster
   for (i in 1:num_clusters) {
-    left_equation_terms[[i]] <- shared_term_for_clusters[[i]] %*% design_mat_list[[i]]
-    right_equation_terms[[i]] <- shared_term_for_clusters[[i]] %*% invlink_fun(mui_vec_list[[i]])
+    left_equation_terms[[i]] <- shared_term_for_clusters[[i]] %*% mean_jacobian_mat_list[[i]]
+    right_equation_terms[[i]] <- shared_term_for_clusters[[i]] %*% (mui_vec_list[[i]])
   }
 
   # Solve for the final left and right terms
@@ -418,7 +422,7 @@
 
   # Calculate the estimated parameter vector by multiplying the left and right terms
   estimated_param_vector <- solved_left_term %*% summed_right_term
-
+  
   return(estimated_param_vector)
 }
 
@@ -449,11 +453,10 @@
                          null_val_vec,
                          estimated_param_vec,
                          model_based_var_mat) {
-  model_based_var_inv <- solve(model_based_var_mat)
 
   noncentrality_param <- n_clust *
     t((contrast_mat %*% estimated_param_vec) - null_val_vec) %*%
-      model_based_var_inv %*%
+      solve(contrast_mat %*% model_based_var_mat %*% t(contrast_mat)) %*%
       ((contrast_mat %*% estimated_param_vec) - null_val_vec)
 
   return(noncentrality_param)
@@ -480,7 +483,7 @@
 #' @keywords internal
 .CalcWaldNullCritVal <- function(alpha, test_df) {
   null_crit_val <- qchisq(
-    q = 1 - alpha,
+    p = 1 - alpha,
     df = test_df
   )
 
@@ -494,7 +497,7 @@
 #' @keywords internal,check
 .CheckCalcPowerInputs <- function(
   design_mat_list, working_cor_mat_list, incidence_mat_list, dgm_param_col_vec,
-  dispersion_scalar, var_fun, link, response_type, alpha, test_df, contrast_mat,
+  dispersion_scalar, family, alpha, test_df, contrast_mat,
   null_val_vec, power_only_flag) {
   checkmate::expect_list(design_mat_list,
                          any.missing = FALSE,
@@ -527,9 +530,7 @@
 
   checkmate::expect_numeric(dgm_param_col_vec, any.missing = FALSE)
   checkmate::expect_number(dispersion_scalar, lower = 0)
-  checkmate::expect_function(var_fun)
-  checkmate::expect_choice(link, c("identity", "logit", "log"))
-  checkmate::expect_choice(response_type, choices = c("continuous", "count", "binary")) # Replace with actual choices
+  checkmate::expect_class(family, classes = "family")
   checkmate::expect_number(alpha, lower = 0, upper = 1)
   checkmate::expect_number(test_df, lower = 1)
   checkmate::expect_matrix(contrast_mat, any.missing = FALSE)
