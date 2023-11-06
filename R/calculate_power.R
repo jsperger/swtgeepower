@@ -156,11 +156,18 @@
   )
 
   # Calculate the power of the test
-  power <- 1 - pchisq(
-    q = null_crit_val,
-    df = test_df,
-    ncp = noncentrality_param
-  )
+  #power <- 1 - pchisq(
+  #  q = null_crit_val,
+  #  df = test_df,
+  #  ncp = noncentrality_param
+  #)
+
+  power <- pchisq(
+      q = null_crit_val,
+      df = test_df,
+      ncp = noncentrality_param,
+      lower.tail = FALSE
+    )
 
   if (power_only_flag == TRUE) return(power)
 
@@ -454,10 +461,9 @@
                          estimated_param_vec,
                          model_based_var_mat) {
 
-  noncentrality_param <- n_clust *
-    t((contrast_mat %*% estimated_param_vec) - null_val_vec) %*%
+  noncentrality_param <- t(contrast_mat %*% (estimated_param_vec - null_val_vec)) %*%
       solve(contrast_mat %*% model_based_var_mat %*% t(contrast_mat)) %*%
-      ((contrast_mat %*% estimated_param_vec) - null_val_vec)
+      ((contrast_mat %*% (estimated_param_vec - null_val_vec)))
 
   return(noncentrality_param)
 }

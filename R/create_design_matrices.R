@@ -102,12 +102,12 @@ CreateClusterCompleteDesignMatrixList <- function(
   n_params <- dim_time_params + dim_trt_params
 
   # Create the time and treatment matrices
-  time_period_vec <- 1:n_study_periods
+  # First time period is rolled into the intercept and so time periods start at 0
+  time_period_vec <- 0:(n_study_periods-1)
 
-  trt_time_vec <- c(rep(0, times = (crossover_time_period - 1)),
-                    seq(from = 1, to = n_study_periods - crossover_time_period + 1, by = 1))
-
-  trt_time_mat <- matrix(1, nrow = dim_trt_params, ncol = 1) %x% matrix(trt_time_vec, ncol = 1)
+  clust_trt_time_mat <- matrix(data =  c(rep(0, times = (crossover_time_period - 1)),
+                    seq(from = 1, to = n_study_periods - crossover_time_period + 1, by = 1)),
+                               ncol = 1)
 
   # Matrix Dimension will depend on the type of time effects
   # There will be an intercept so the first period is not included in categorical
@@ -120,26 +120,47 @@ CreateClusterCompleteDesignMatrixList <- function(
 
   # Matrix Dimension will depend on the type of study design
   # Note for quadratic that x^2 for a matrix in R does element-wise squaring
-  transformed_trt_mat <- switch(trt_model_type,
-                                average = pmin(trt_time_mat, 1),
-                                linear = linear_trt_scale_factor * trt_time_mat,
-                                quadratic = cbind(trt_time_mat, trt_time_mat^2),
+  transformed_clust_trt_mat <- switch(trt_model_type,
+                                average = pmin(clust_trt_time_mat, 1),
+                                linear = linear_trt_scale_factor * clust_trt_time_mat,
+                                quadratic = cbind(clust_trt_time_mat, clust_trt_time_mat^2),
                                 stop("trt_model_type must be one of 'average', 'linear', or 'quadratic'")
   )
 
   # Create the design matrix
 
-  single_ind_design_mat <- cbind(rep(1, times = n_study_periods),
-                         transformed_time_mat,
-                         transformed_trt_mat)
+    single_ind_design_mat <- cbind(rep(1, times = n_study_periods),
+                                   transformed_time_mat,
+                                   transformed_clust_trt_mat)
 
-  cluster_design_mat <- matrix(1, nrow = n_ind_per_clust, ncol = 1) %x%
-    single_ind_design_mat
+    cluster_design_mat <- matrix(1, nrow = n_ind_per_clust, ncol = 1) %x%
+      single_ind_design_mat
+
+
+  if (mli_study_flag == TRUE){
+    trt_sample <- c(rep(0, times = floor(n_ind_per_clust/2)), rep(1, times = floor(n_ind_per_clust/2)))
+    if(n_ind_per_clust %% 2 == 1) {
+      trt_sample <-  c(trt_sample, rbinom(1, 1, .5))
+    }
+    ind_trt_group <- sample(trt_sample, size = n_ind_per_clust, replace = FALSE)
+    ind_trt_time_col_vec <- matrix(1:n_study_periods, ncol = 1)
+    ind_trt_time_mat <- matrix(ind_trt_group, nrow = n_ind_per_clust, ncol = 1) %x% ind_trt_time_col_vec
+
+    transformed_ind_trt_mat <- switch(trt_model_type,
+                                        average = pmin(ind_trt_time_mat, 1),
+                                        linear = linear_trt_scale_factor * ind_trt_time_mat,
+                                        quadratic = cbind(ind_trt_time_mat, ind_trt_time_mat^2),
+                                        stop("trt_model_type must be one of 'average', 'linear', or 'quadratic'")
+    )
+    interaction_mat <- matrix(ind_trt_group, nrow = n_ind_per_clust, ncol = 1) %x% transformed_clust_trt_mat
+
+    cluster_design_mat <- cbind(cluster_design_mat, transformed_ind_trt_mat, interaction_mat)
+  }
 
   expect_equal(nrow(cluster_design_mat), n_observations)
   expect_equal(ncol(cluster_design_mat), n_params)
 
-  colnames(cluster_design_mat) <- c(.NameTimeEffects(time_model_type, n_study_periods), .NameTrtEffects(mli_study_flag))
+  colnames(cluster_design_mat) <- c(.NameTimeEffects(time_model_type, n_study_periods), .NameTrtEffects(mli_study_flag = mli_study_flag))
 
   return(cluster_design_mat)
 }

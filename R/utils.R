@@ -51,11 +51,9 @@
 }
 
 .NameTrtEffects <- function(mli_study_flag){
-  trt_effect_names <- ifelse(mli_study_flag == TRUE,
-                             yes = c("TrtClust", "TrtInd", "TrtClustInd"),
-                             no = "TrtClust")
+  if (mli_study_flag == TRUE) return(c("TrtClust", "TrtInd", "TrtClustInd"))
 
-  return(trt_effect_names)
+  return("TrtClust")
 }
 
 # Default Parameter Dimensions
@@ -132,9 +130,10 @@
 
 
 .CreateDefaultNullValVec <- function(mli_study_flag){
-  contrast_dim <- ifelse(mli_study_flag == TRUE, 3, 1)
+  if(mli_study_flag == TRUE) contrast_dim <- 5
+  if(mli_study_flag == FALSE) contrast_dim <- 3
 
-  return(rep(0, times = contrast_dim))
+  return(matrix(rep(0, times = contrast_dim), ncol = 1))
 }
 
 #' @title Create a default contrast matrix
