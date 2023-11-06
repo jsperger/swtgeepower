@@ -4,3 +4,4 @@
 .devel/
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^\.github$
