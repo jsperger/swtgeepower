@@ -95,6 +95,5 @@ ReplicatePrevSciPaperExample <- function(){
                            power_only_flag = FALSE
   )
 
-  print(power_list$power)
   return(power_list)
 }
