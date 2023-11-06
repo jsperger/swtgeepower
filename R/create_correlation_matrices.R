@@ -7,8 +7,7 @@
 
 # TODO: explain why there isn't an option for exchangeable correlation structure
 # TODO: Add a note about the correlation when there is an implementation period.
-# TODO: Add a way to accomodate an implementation period with decay models so
-# that the decay is calculated using calendar time period equivalents.
+# TODO: Add a way to accomodate an implementation period with decay models so that the decay is calculated using calendar time period equivalents.
 
 
 ###############################################################################
@@ -440,10 +439,12 @@ CreateWorkingCorMat<- function(
 }
 
 if(FALSE){
-  #' Create Inverted Block Exchangeable Correlation Matrix
+  #' @title Create Inverted Block Exchangeable Correlation Matrix
   #'
+  #' @description
   #' Uses an explicit form for the inverse of a block exchangeable correlation matrix to calculate the inverse of a block
-  #' exchangeable correlation matrix without directly inverting the matrix.
+  #' exchangeable correlation matrix without directly inverting the matrix. Trick from
+  #'
   #'
   #' @param n_obs_periods Number of observation periods
   #' @param n_subj_per_period Number of subjects per observation period
@@ -455,6 +456,7 @@ if(FALSE){
   #' in different time periods
   #'
   #' @return The inverse of a block exchangeable correlation matrix with row- (and column-) dimension n_obs_periods*n_subj_per_period
+  #' @noRd
   CreateInvertedBlockExchangeableCorMat <- function (n_obs_periods,
                                                      n_subj_per_period,
                                                      within_period_corr,

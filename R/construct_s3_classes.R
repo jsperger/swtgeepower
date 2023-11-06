@@ -1,11 +1,19 @@
 
 if(FALSE){
-
+#' @title Create a `working_cor` (Working Correlation Matrix) object
+#' @noRd
+#' @description Under development
+#'
+#' @keywords internal,s3,class
   NewWorkingCorrelationMatrix <- function(){
     new_instance <- structure(list(), class = "working_correlation_matrix")
   }
 
-  #' Constructor for the `swtdesign` class
+  #' @title Create a `swtdesign` object
+  #' @noRd
+  #' @description Under development
+  #'
+  #' @keywords internal,s3,class
   NewSwtdesign <- function(n_time_periods,
                            n_obs_periods_per_clust,
                            n_clust,

@@ -2,3 +2,5 @@
 ^codecov\.yml$
 ^README\.Rmd$
 .devel/
+^.*\.Rproj$
+^\.Rproj\.user$

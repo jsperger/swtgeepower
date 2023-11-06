@@ -8,8 +8,6 @@
 
 #' @title Internal Power Calculation Function
 #'
-#' Internal Power Calculation Function: .CalcPower
-#'
 #' @description
 #' The function \code{.CalcPower} performs the core power calculation for stepped wedge trials and
 #' multilevel cluster randomized trials using Generalized Estimating Equations (GEE).
