@@ -2,6 +2,7 @@
 
 export(CreateSequenceIncidenceMat)
 export(CreateWorkingCorMat)
+export(ReplicatePrevSciPaperExample)
 export(SpecifyDataGeneratingModel)
 importFrom(lifecycle,deprecated)
 importFrom(tibble,tibble)

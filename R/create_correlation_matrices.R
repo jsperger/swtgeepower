@@ -431,7 +431,9 @@ CreateWorkingCorMat<- function(
 
   .CheckCorMatInputsLogic(
     sample_type_sanitized = sample_type_sanitized,
+    within_period_cor = within_period_cor,
     between_period_cor = between_period_cor,
+    within_subject_cor = within_subject_cor,
     cor_decay_rate = cor_decay_rate
   )
 
@@ -495,7 +497,9 @@ if(FALSE){
 #' .CheckCorMatInputsLogic(sample_type_sanitized = "cohort", between_period_cor = 0.3, cor_decay_rate = 0.8)
 #'
 .CheckCorMatInputsLogic <- function(sample_type_sanitized,
+                                    within_period_cor,
                                     between_period_cor = NULL,
+                                    within_subject_cor = NULL,
                                     cor_decay_rate = NULL) {
   if ((sample_type_sanitized %in% c("cross", "cohort")) == FALSE) {
     stop("ERROR: sample_type must be either 'cross' or 'cohort'")
