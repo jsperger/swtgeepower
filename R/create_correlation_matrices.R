@@ -377,6 +377,44 @@ CreateWorkingCorMat<- function(
 
   return(cor_mat)
 }
+
+##############################################################################################
+## Cluster-Period Correlation Matrix Functions
+##
+##############################################################################################
+
+
+TransformWorkingCorMatToClusterPeriodCorMat <- function(working_cor_mat_list,
+                                                        cor_structure,
+                                                        n_obs_periods,
+                                                        n_subj_per_period,
+                                                        within_period_cor,
+                                                        between_period_cor = NULL,
+                                                        within_subject_cor = NULL,
+                                                        cor_decay_rate = NULL){
+
+
+  return(cluster_period_cor_mat_list)
+}
+
+
+.TransformNestedExchangeableToClusterPeriodCorMat <- function(working_cor_mat,
+                                                              n_obs_periods,
+                                                              n_subj_per_period_vec,
+                                                              within_period_cor,
+                                                              between_period_cor = NULL) {
+
+  cluster_period_dispersion_vec <- 1 + ((n_subj_per_period_vec - 1) * within_period_cor)
+  induced_cor_mat <- matrix(data = NA, nrow = n_obs_periods, ncol = n_obs_periods)
+
+  for(i in 1:n_obs_periods){
+    for(j in 1:n_obs_periods){
+      induced_cor_numerator <- between_period_cor * sqrt(n_subj_per_period_vec[i] * n_subj_per_period_vec[j])
+      induced_cor_denominator <- sqrt(cluster_period_dispersion_vec[i] * cluster_period_dispersion_vec[j])
+      induced_cor_mat[i, j] <- induced_cor_numerator / induced_cor_denominator
+    }
+  }
+}
 ##############################################################################################
 ## Helper Functions
 ##
