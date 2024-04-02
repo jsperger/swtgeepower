@@ -406,7 +406,8 @@ TransformWorkingCorMatToClusterPeriodCorMat <- function(working_cor_mat_list,
 #' with a nested-exchangeable unit-level correlation structure
 .CalcClusterCPNestedExchangeable <- function(n_obs_periods,
                                            n_subj_clust_period_vec,
-                                           within_period_cor) {
+                                           within_period_cor,
+                                           between_period_cor) {
     clust_period_dispersion_vec <- .CPTCalcCPDispersion(
         n_obs_periods = n_obs_periods,
         n_subj_clust_period_vec = n_subj_clust_period_vec,
@@ -436,17 +437,84 @@ TransformWorkingCorMatToClusterPeriodCorMat <- function(working_cor_mat_list,
         return(cp_cor_mat)
 }
 
-.CPTransformBlockExchangeable <- function(n_obs_periods,
-                                         n_subj_per_period_vec,
-                                         within_period_cor,
-                                         between_period_cor){
+.CPTransformExpDecay <- function(n_obs_periods,
+                                 n_subj_clust_period_vec,
+                                 within_period_cor,
+                                 cor_decay_rate) {
+     clust_period_dispersion_vec <- .CPTCalcCPDispersion(
+        n_obs_periods = n_obs_periods,
+        n_subj_clust_period_vec = n_subj_clust_period_vec,
+        within_period_cor = within_period_cor)
 
+### We create an upper triangular matrix and add it to its transpose
+## Thus the diagonal is initially set to .5
+     cp_cor_ut_mat <- diag(x = .5, nrow = n_obs_periods)
+
+     period_difs_vec <- seq(from = 1, to = (n_obs_periods - 1))
+
+     cor_decay_vec <- cor_decay_rate^period_difs_vec
+
+        for (i in 1:(n_obs_periods - 1)) {
+                for (j in (i + 1):n_obs_periods) {
+                    induced_cor_numerator <- within_period_cor *
+                            cor_decay_vec[(j-i)] *
+                                sqrt(n_subj_clust_period_vec[i] * n_subj_clust_period_vec[j])
+                        induced_cor_denominator <- sqrt(clust_period_dispersion_vec[i] *
+                                clust_period_dispersion_vec[j])
+
+                        cp_cor_ut_mat[i, j] <- induced_cor_numerator / induced_cor_denominator
+                }
+        }
+
+        cp_cor_mat <- cp_cor_ut_mat + t(cp_cor_ut_mat)
+
+     return(cp_cor_mat)
 }
+
+.CPTransformBlockExchangeable <- function(n_obs_periods,
+                                          n_subj_per_period,
+                                          within_period_cor,
+                                          between_period_cor,
+                                          within_subject_cor) {
+        induced_cor_numerator <- within_subject_cor +
+                between_period_cor * (n_subj_per_period - 1)
+
+        induced_cor_denominator <- 1 +
+                within_period_cor * (n_subj_per_period - 1)
+
+        induced_cor_val <- induced_cor_numerator / induced_cor_denominator
+
+        induced_cor_mat <- matrix(
+                data = induced_cor_val,
+                nrow = n_obs_periods,
+                ncol = n_obs_periods
+        ) +
+                diag(1 - induced_cor_val, nrow = n_obs_periods)
+
+        return(induced_cor_mat)
+}
+
+.CPTransformPropDecay <- function(n_obs_periods,
+                                  cor_decay_rate) {
+    period_difs_vec <- seq(from = 1, to = (n_obs_periods - 1))
+    cor_decay_vec <- cor_decay_rate^period_difs_vec
+
+        for (i in 1:(n_obs_periods - 1)) {
+                for (j in (i + 1):n_obs_periods) {
+                        cp_cor_ut_mat[i, j] <- cor_decay_vec[(j-i)]
+                }
+        }
+
+    cp_cor_mat <- cp_cor_ut_mat + t(cp_cor_ut_mat)
+
+    return(cp_cor_mat)
+}
+
 .CPTCalcCPDispersion <- function(n_obs_periods,
                                  n_subj_clust_period_vec,
                                  within_period_cor) {
     clust_period_dispersion_vec <- 1 +
-        (within_period_cor * (n_subj_clust_period_mat - 1))
+        (within_period_cor * (n_subj_clust_period_vec - 1))
 
     return(clust_period_dispersion_vec)
 }
