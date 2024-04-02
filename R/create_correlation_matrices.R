@@ -1,13 +1,15 @@
 #' swtgeepower
 #'
-#' Power and sample size calculations for stepped wedge cluster randomized trials and multilevel cluster randomized trials
+#' Power and sample size calculations for stepped wedge cluster randomized
+#' trials and multilevel cluster randomized trials
 #'
 #' @docType package
 #' @name swtgeepower
 
 # TODO: explain why there isn't an option for exchangeable correlation structure
 # TODO: Add a note about the correlation when there is an implementation period.
-# TODO: Add a way to accomodate an implementation period with decay models so that the decay is calculated using calendar time period equivalents.
+# TODO: Add a way to accomodate an implementation period with decay models so
+# that the decay is calculated using calendar time period equivalents.
 
 
 ###############################################################################
@@ -25,7 +27,7 @@ CreateCompleteWorkingCorMatList <- function(
   within_subject_cor = NULL,
   cor_decay_rate = NULL
   ) {
-  
+
   working_cor_mat_prototype <- CreateWorkingCorMat(
     n_subj_per_period = n_ind_per_clust,
     n_obs_periods = n_study_periods,
@@ -400,29 +402,56 @@ TransformWorkingCorMatToClusterPeriodCorMat <- function(working_cor_mat_list,
   return(cluster_period_cor_mat_list)
 }
 
+#' Calculate the cluster-period correlation matrix for one cluster
+#' with a nested-exchangeable unit-level correlation structure
+.CalcClusterCPNestedExchangeable <- function(n_obs_periods,
+                                           n_subj_clust_period_vec,
+                                           within_period_cor) {
+    clust_period_dispersion_vec <- .CPTCalcCPDispersion(
+        n_obs_periods = n_obs_periods,
+        n_subj_clust_period_vec = n_subj_clust_period_vec,
+        within_period_cor = within_period_cor)
 
-.TransformNestedExchangeable <- function(working_cor_mat,
-                                         n_obs_periods,
-                                         n_subj_per_period_vec,
-                                         within_period_cor,
-                                         between_period_cor = NULL) {
-        cluster_period_dispersion_vec <- 1 + ((n_subj_per_period_vec - 1) * within_period_cor)
-        induced_cor_mat <- matrix(data = NA, nrow = n_obs_periods, ncol = n_obs_periods)
+### Is it worth-precomputing the square roots?
 
-        for (i in 1:n_obs_periods) {
-                for (j in 1:n_obs_periods) {
-                        induced_cor_numerator <- between_period_cor * sqrt(n_subj_per_period_vec[i] * n_subj_per_period_vec[j])
-                        induced_cor_denominator <- sqrt(cluster_period_dispersion_vec[i] * cluster_period_dispersion_vec[j])
-                        induced_cor_mat[i, j] <- induced_cor_numerator / induced_cor_denominator
+
+### We create an upper triangular matrix and add it to its transpose
+## Thus the diagonal is initially set to .5
+        cp_cor_ut_mat <- diag(x = .5, nrow = n_obs_periods)
+
+        # Indices stem from symmetry of correlation and diagonal always 1
+        for (i in 1:(n_obs_periods - 1)) {
+                for (j in (i + 1):n_obs_periods) {
+                        induced_cor_numerator <- between_period_cor *
+                                sqrt(n_subj_clust_period_vec[i] * n_subj_clust_period_vec[j])
+                        induced_cor_denominator <- sqrt(clust_period_dispersion_vec[i] *
+                                clust_period_dispersion_vec[j])
+
+                        cp_cor_ut_mat[i, j] <- induced_cor_numerator / induced_cor_denominator
                 }
         }
 
-        return(induced_cor_mat)
+        cp_cor_mat <- cp_cor_ut_mat + t(cp_cor_ut_mat)
+
+        return(cp_cor_mat)
 }
 
-.TransformBlockExchangeable <- function(){
+.CPTransformBlockExchangeable <- function(n_obs_periods,
+                                         n_subj_per_period_vec,
+                                         within_period_cor,
+                                         between_period_cor){
 
 }
+.CPTCalcCPDispersion <- function(n_obs_periods,
+                                 n_subj_clust_period_vec,
+                                 within_period_cor) {
+    clust_period_dispersion_vec <- 1 +
+        (within_period_cor * (n_subj_clust_period_mat - 1))
+
+    return(clust_period_dispersion_vec)
+}
+
+
 ##############################################################################################
 ## Helper Functions
 ##
@@ -618,32 +647,36 @@ if(FALSE){
                                    between_period_cor = NULL,
                                    within_subject_cor = NULL,
                                    cor_decay_rate = NULL) {
-  if (is.character(sample_type) == FALSE) {
-    stop("ERROR: sample_type must be a character string")
-  }
+        if (is.character(sample_type) == FALSE) {
+                stop("ERROR: sample_type must be a character string")
+        }
 
-  # Check that the required inputs are numeric
-  if (all(is.numeric(c(n_obs_periods, n_subj_per_period, within_period_cor))) == FALSE) {
-    stop("ERROR: n_obs_periods, n_subj_per_period, and within_period_cor must be numeric")
-  }
+        # Check that the required inputs are numeric
+        if (all(is.numeric(c(n_obs_periods, n_subj_per_period, within_period_cor))) == FALSE) {
+                stop("ERROR: n_obs_periods, n_subj_per_period, and within_period_cor must be numeric")
+        }
 
-  # Check that the potentially null correlations are numeric
-  if (!is.null(between_period_cor) && !is.numeric(between_period_cor)) {
-    stop("ERROR: between_period_cor must be numeric")
-  }
-  if (!is.null(within_subject_cor) && !is.numeric(within_subject_cor)) {
-    stop("ERROR: within_subject_cor must be numeric")
-  }
-  if (!is.null(cor_decay_rate) && !is.numeric(cor_decay_rate)) {
-    stop("ERROR: cor_decay_rate must be numeric")
-  }
+        # Check that the potentially null correlations are numeric
+        if (!is.null(between_period_cor) && !is.numeric(between_period_cor)) {
+                stop("ERROR: between_period_cor must be numeric")
+        }
+        if (!is.null(within_subject_cor) && !is.numeric(within_subject_cor)) {
+                stop("ERROR: within_subject_cor must be numeric")
+        }
+        if (!is.null(cor_decay_rate) && !is.numeric(cor_decay_rate)) {
+                stop("ERROR: cor_decay_rate must be numeric")
+        }
 
-  input_list <- list(n_obs_periods, n_subj_per_period, sample_type, within_period_cor, between_period_cor, within_subject_cor, cor_decay_rate)
-  if (any(lapply(input_list, FUN = length) > 1)) {
-    include_in_error_msg <- lapply(input_list, FUN = length) > 1
+        input_list <- list(n_obs_periods, n_subj_per_period, sample_type, within_period_cor, between_period_cor, within_subject_cor, cor_decay_rate)
+        if (any(lapply(input_list, FUN = length) > 1)) {
+                include_in_error_msg <- lapply(input_list, FUN = length) > 1
 
-    stop(paste("ERROR: The following inputs must be single values:", paste(names(input_list)[include_in_error_msg], collapse = ", ")))
-  }
+                stop(paste("ERROR: The following inputs must be single values:", paste(names(input_list)[include_in_error_msg], collapse = ", ")))
+        }
 
-  return(NULL)
+        return(NULL)
+}
+
+.CheckClusterPeriodInputs <- function(n_obs_periods, ...) {
+
 }
