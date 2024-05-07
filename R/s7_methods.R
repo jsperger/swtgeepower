@@ -1,0 +1,1 @@
+# Methods for S7 Objects
