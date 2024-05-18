@@ -6,7 +6,7 @@ CalcSWTSampleSize <- function(verbose=FALSE){
   n_clust_per_seq = seq(5,15,by=1) 
   n_ind_per_clust = c(1:100)
   power = 0
-  epsilon_power = 0.01
+  epsilon_power = 0.025
   maxIter = 15
   powerTarget = 0.8
   
@@ -27,7 +27,7 @@ CalcSWTSampleSize <- function(verbose=FALSE){
     # loop to calculate the closest power for specific sample size using binary search 
     while(power > powerTarget + epsilon_power | power < powerTarget-epsilon_power) { 
       
-      # stop if can't find close enough power 
+      # stop if can't find close enough power within certain number of iterations 
       if (iterCount > maxIter) { 
         maxIterCheck = TRUE 
         break
@@ -35,7 +35,6 @@ CalcSWTSampleSize <- function(verbose=FALSE){
       
       # check midpoint for current bounds  
       mid =  low + (high - low) %/% 2 # floor((low+high) / 2)
-      
       
       ##### calculate the power for example
       power = ReplicatePrevSciPaperExample_CalcSampleSize(n_clust_per_seq=n_clust, n_ind_per_clust=n_ind_per_clust[mid])$power
@@ -84,6 +83,7 @@ CalcSWTSampleSize <- function(verbose=FALSE){
     if (maxIterCheck) { 
       print(paste('Warning: max iterations reached for epsilon=', epsilon_power, 'of', powerTarget, 'and sample size=', n_clust))
     }
+    
     # if convergence not within epsilon 
     if (convergenceCheck) { 
       print(paste('Warning: power did not converge within epsilon=', epsilon_power, 'of', powerTarget, 'and for sample size=', n_clust))
